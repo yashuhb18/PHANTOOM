@@ -7,6 +7,7 @@ All actions are logged with MITRE ATT&CK technique mapping.
 """
 
 import os
+import sys
 import subprocess
 import datetime
 import logging
@@ -59,6 +60,9 @@ class ResponseEngine:
         ejected = False
         details_list = []
         drive_letter = mount_point.rstrip("\\").rstrip("/").upper()
+
+        if sys.platform.startswith("linux"):
+            return self._eject_usb_linux(mount_point, session_id, reason)
 
         if not drive_letter.endswith(":"):
             drive_letter = drive_letter + ":"
@@ -242,6 +246,144 @@ class ResponseEngine:
             "status": "EJECTED" if ejected else "EJECT_FAILED",
             "action": "USB_DRIVE_EJECT",
             "drive_letter": drive_letter,
+            "mount_point": mount_point,
+            "ejected": ejected,
+            "details": details_str,
+            "timestamp": now
+        }
+
+    def _eject_usb_linux(
+        self,
+        mount_point: str,
+        session_id: Optional[str] = None,
+        reason: str = "Autonomous threat response"
+    ) -> Dict[str, Any]:
+        """
+        Linux Hardware-Level USB Ejection Engine.
+        """
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        ejected = False
+        details_list = []
+        
+        logger.warning(f"🔌 AUTONOMOUS LINUX USB EJECT INITIATED: {mount_point} — Reason: {reason}")
+        
+        # 1. Handle teardown
+        try:
+            from backend.agent.usb_monitor import usb_monitor
+            usb_monitor.stop_watcher_for_mount(mount_point)
+            details_list.append("Internal watchdog detached")
+        except Exception:
+            pass
+            
+        try:
+            curr_pid = os.getpid()
+            for proc in psutil.process_iter(['pid', 'name']):
+                if proc.pid in (0, 1, 2, curr_pid):
+                    continue
+                try:
+                    cwd = proc.cwd()
+                    if cwd and cwd.startswith(mount_point):
+                        pname = proc.name()
+                        proc.kill()
+                        details_list.append(f"Killed {pname} (CWD lock)")
+                        continue
+                except Exception:
+                    pass
+                try:
+                    for f in proc.open_files():
+                        if f.path and f.path.startswith(mount_point):
+                            pname = proc.name()
+                            proc.kill()
+                            details_list.append(f"Killed {pname} (File lock: {os.path.basename(f.path)})")
+                            break
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"Linux process kill error: {e}")
+            
+        # 2. Sync and Unmount
+        try:
+            os.sync()
+            details_list.append("Caches synced")
+        except Exception:
+            pass
+            
+        block_device = ""
+        try:
+            for part in psutil.disk_partitions(all=True):
+                if part.mountpoint == mount_point:
+                    block_device = part.device
+                    break
+        except Exception:
+            pass
+            
+        unmounted = False
+        if block_device:
+            try:
+                res = subprocess.run(["udisksctl", "unmount", "-b", block_device], capture_output=True, text=True, timeout=5)
+                if res.returncode == 0:
+                    unmounted = True
+                    details_list.append(f"Unmounted {block_device} via udisksctl")
+            except Exception:
+                pass
+                
+        if not unmounted:
+            try:
+                res = subprocess.run(["umount", mount_point], capture_output=True, text=True, timeout=5)
+                if res.returncode == 0:
+                    unmounted = True
+                    details_list.append("Unmounted via umount")
+            except Exception:
+                pass
+                
+        # 3. Power-off / Eject
+        powered_off = False
+        if block_device:
+            import re
+            parent_match = re.match(r"(/dev/sd[a-z])\d*", block_device)
+            if parent_match:
+                parent_dev = parent_match.group(1)
+                try:
+                    res = subprocess.run(["udisksctl", "power-off", "-b", parent_dev], capture_output=True, text=True, timeout=5)
+                    if res.returncode == 0:
+                        powered_off = True
+                        details_list.append(f"Powered off {parent_dev} via udisksctl")
+                except Exception:
+                    pass
+            if not powered_off:
+                try:
+                    res = subprocess.run(["eject", block_device], capture_output=True, text=True, timeout=5)
+                    if res.returncode == 0:
+                        powered_off = True
+                        details_list.append("Ejected via eject command")
+                except Exception:
+                    pass
+                    
+        if unmounted or powered_off:
+            ejected = True
+            
+        details_str = " | ".join(details_list) if details_list else "Safe ejection completed"
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        sid = session_id or "sess_system"
+        cursor.execute("""
+            INSERT INTO alerts (session_id, alert_type, severity, title, description, mitre_technique, status, created_at)
+            VALUES (?, 'ACTION_USB_EJECT', 'CRITICAL', ?, ?, 'T1200', ?, ?)
+        """, (
+            sid,
+            f"Autonomous USB Eject: {mount_point}",
+            f"{'Successfully ejected' if ejected else 'Attempted eject of'} USB drive {mount_point}. {details_str}. Reason: {reason}",
+            "CONTAINED" if ejected else "ATTEMPTED",
+            now
+        ))
+        conn.commit()
+        conn.close()
+
+        return {
+            "status": "EJECTED" if ejected else "EJECT_FAILED",
+            "action": "USB_DRIVE_EJECT",
+            "drive_letter": mount_point,
             "mount_point": mount_point,
             "ejected": ejected,
             "details": details_str,

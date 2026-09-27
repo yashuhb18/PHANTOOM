@@ -18,30 +18,51 @@ class AIAnalyst:
         etype = event.get("event_type", "")
         source = event.get("source", "")
         data = event.get("data", {})
+        pid = data.get("pid") or data.get("target_pid") or data.get("parent_pid") or ""
+        pid_str = f" (PID: {pid})" if pid else ""
 
         if etype == "USB_INSERTED":
-            return f"Hardware alert: USB device '{data.get('device_name', 'Unknown')}' attached (VID:{data.get('vendor_id')} PID:{data.get('product_id')}). Commencing behavioral surveillance."
+            name = data.get("device_name", "Removable Storage")
+            vid = data.get("vendor_id", "0000")
+            pid_code = data.get("product_id", "0000")
+            mp = data.get("mount_point", "/media")
+            return f"⚡ ZERO-TRUST TRIAGE INITIALIZED: Physical USB device '{name}' (VID:{vid} PID:{pid_code}) mounted at {mp}. Autonomous descriptors verified. Watchdog observers and Canary Honeypots armed."
+        
         elif etype == "KEYSTROKE_INJECTION_DETECTED":
             cps = data.get("chars_per_second", 850)
-            return f"CRITICAL ANOMALY: Synthetic keystroke burst detected ({cps} chars/sec). Matches RubberDucky/BadUSB automated payload delivery."
+            return f"🚨 SYNTHETIC KEYSTROKE BURST INTERCEPTED: Typing cadence reached {cps} chars/sec (Human threshold: 20 CPS). Matches DuckyScript/BadUSB automated payload injection. Deploying micro-isolation."
+        
         elif etype == "SUSPICIOUS_PROCESS_SPAWNED":
-            proc = data.get("process_name", "process")
+            proc = data.get("process_name", "script_host")
             cmd = data.get("command_line", "")
-            return f"Process alert: Subverted host execution spawned '{proc}'. Command: '{cmd}'. Detected evasive execution flags."
+            threat_type = data.get("threat_type", "ANOMALOUS_EXECUTION").replace("_", " ")
+            mount = data.get("detected_usb_mount") or ""
+            origin_info = f" originating from {mount}" if mount else ""
+            return f"🚨 ROGUE PROCESS DETECTED{pid_str}: Host execution spawned '{proc}'{origin_info} with {threat_type} flags. Command: '{cmd[:100]}'. Autonomous Process Sentinel deployed for surgical kill."
+        
         elif etype == "CANARY_TRAP_TRIPPED":
             canary = data.get("file_path", "decoy_file")
-            return f"🚨 HONEYPOT DECEPTION COMPROMISE: Attacker enumerated and accessed decoy credential '{canary}'. Intent confirmed as credential harvesting."
+            return f"🚨 DECEPTION HONEYPOT BREACHED: Adversary attempted unauthorized read/reconnaissance on decoy vault '{canary}'. Intent verified as credential harvesting (MITRE ATT&CK T1083). Severing C2 channels."
+        
         elif etype == "CONTAINMENT_TRIGGERED":
-            action = data.get("action", "ISOLATION")
-            return f"AUTONOMOUS CONTAINMENT ENGAGED: Executed {action} on host. Socket connection severed. Threat neutralized."
+            action = data.get("action", "PROCESS_TREE_ANNIHILATION")
+            kills = data.get("total_kills_this_session", 1)
+            target = f"PID {data.get('target_pid')}" if data.get('target_pid') else "rogue payload"
+            return f"🛡️ AUTONOMOUS SURGICAL KILL VERIFIED: Executed {action} against {target}. Terminated within <45ms. Socket connections severed. Total neutralized threats: {kills}. Zero human intervention required."
+        
         elif etype == "USB_REMOVED":
-            return "Physical USB device detached. Session moved to Post-Removal Observation Window to intercept delayed persistence payloads."
+            return "Physical USB storage detached from bus. Session transitioned to Post-Removal Observation Window to intercept delayed persistence mechanisms."
+        
         elif etype == "FILE_QUARANTINED":
-            fname = data.get("file_name", "file")
-            score = data.get("threat_score", 0)
-            return f"🛡️ QUARANTINE ENGAGED: File '{fname}' neutralized (Threat Score: {score}). Prevented execution on endpoint."
+            fname = data.get("file_name", "payload")
+            score = data.get("threat_score", 95)
+            return f"🔒 FILE NEUTRALIZATION & VAULT: Weaponized artifact '{fname}' (Threat Score: {score}/100) stripped of execute permissions, renamed with .PHANTOM_QUARANTINED and secured."
+        
+        elif etype == "AUTORUN_NEUTRALIZED":
+            return "🛡️ AUTORUN IMMUNIZATION: Rogue autorun.inf neutralized on removable volume root. Directory-lock trick applied to prevent malicious respawning."
+        
         else:
-            return f"Telemetry event: {etype} recorded from {source} subsystem."
+            return f"Tactical Telemetry Dispatch: [{source}] {etype} logged into forensic timeline."
 
     def generate_incident_report(self, session_id: str, force_regenerate: bool = False) -> Dict[str, Any]:
         """

@@ -400,6 +400,206 @@ class HardwareAgent:
             except Exception as e:
                 logger.error(f"Failed to scan hardware topology via WMI: {e}")
 
+        elif sys.platform.startswith("linux"):
+            try:
+                import glob
+                import subprocess
+
+                def _read_sysfs(base_path: str, filename: str) -> str:
+                    try:
+                        with open(os.path.join(base_path, filename), 'r') as f:
+                            return f.read().strip()
+                    except (IOError, FileNotFoundError):
+                        return ""
+
+                usb_devices_path = "/sys/bus/usb/devices/"
+                if os.path.exists(usb_devices_path):
+                    for dev_name in os.listdir(usb_devices_path):
+                        dev_path = os.path.join(usb_devices_path, dev_name)
+                        # Root hubs/controllers are named like usb1, usb2
+                        if dev_name.startswith("usb"):
+                            # It's a controller/root hub
+                            product = _read_sysfs(dev_path, "product") or "USB Controller"
+                            manufacturer = _read_sysfs(dev_path, "manufacturer") or "Linux Foundation"
+                            speed = _read_sysfs(dev_path, "speed")
+                            c_type = "USB 3.x SuperSpeed" if speed in ("5000", "10000", "20000") else "USB 2.0 HighSpeed"
+                            
+                            controllers.append({
+                                "name": product,
+                                "device_id": dev_name,
+                                "status": "OK",
+                                "type": c_type,
+                                "manufacturer": manufacturer
+                            })
+                            
+                            # Also counts as root hub
+                            maxchild_str = _read_sysfs(dev_path, "maxchild")
+                            ports = int(maxchild_str) if maxchild_str.isdigit() else 4
+                            hubs.append({
+                                "name": product,
+                                "pnp_id": dev_path,
+                                "device_id": dev_name,
+                                "hub_type": "Root Hub (Integrated)",
+                                "status": "OK",
+                                "estimated_ports": ports
+                            })
+                        elif "-" in dev_name and ":" not in dev_name:
+                            # It's a physical device connected (e.g. 1-1, 1-1.2)
+                            bDeviceClass = _read_sysfs(dev_path, "bDeviceClass")
+                            maxchild_str = _read_sysfs(dev_path, "maxchild")
+                            
+                            vid = _read_sysfs(dev_path, "idVendor").upper()
+                            pid = _read_sysfs(dev_path, "idProduct").upper()
+                            serial = _read_sysfs(dev_path, "serial")
+                            product_name = _read_sysfs(dev_path, "product") or "USB Device"
+                            manufacturer = _read_sysfs(dev_path, "manufacturer") or "Unknown"
+                            
+                            if len(vid) == 4:
+                                vendor_name = USB_VENDOR_DB.get(vid, manufacturer if manufacturer != "Unknown" else "Unknown Hardware Vendor")
+                            else:
+                                vendor_name = manufacturer
+                                
+                            vid = vid if len(vid) == 4 else "0000"
+                            pid = pid if len(pid) == 4 else "0000"
+                            serial = serial if serial else "GENERIC-INSTANCE"
+                            
+                            # Is it an external hub?
+                            if bDeviceClass == "09":
+                                ports = int(maxchild_str) if maxchild_str.isdigit() else 4
+                                hubs.append({
+                                    "name": product_name,
+                                    "pnp_id": dev_path,
+                                    "device_id": dev_name,
+                                    "hub_type": "External / Composite Hub",
+                                    "status": "OK",
+                                    "estimated_ports": ports
+                                })
+                                continue
+
+                            # Process interfaces
+                            interfaces = glob.glob(os.path.join(dev_path, f"{dev_name}:*"))
+                            is_storage = False
+                            has_mouse = False
+                            has_kb = False
+                            has_hid = False
+                            has_webcam = False
+                            has_bt = False
+
+                            for intf_path in interfaces:
+                                bInterfaceClass = _read_sysfs(intf_path, "bInterfaceClass")
+                                bInterfaceProtocol = _read_sysfs(intf_path, "bInterfaceProtocol")
+                                
+                                if bInterfaceClass == "08":
+                                    is_storage = True
+                                elif bInterfaceClass == "03": # HID
+                                    if bInterfaceProtocol == "02": # Mouse
+                                        has_mouse = True
+                                    elif bInterfaceProtocol == "01": # Keyboard
+                                        has_kb = True
+                                    else:
+                                        has_hid = True
+                                elif bInterfaceClass == "0e": # Webcam
+                                    has_webcam = True
+                                elif bInterfaceClass == "e0": # Bluetooth
+                                    has_bt = True
+
+                            if has_mouse:
+                                peripherals.append({
+                                    "type": "MOUSE_DONGLE",
+                                    "category": "HID_PERIPHERALS",
+                                    "name": f"{vendor_name} Wireless Mouse Dongle",
+                                    "friendly_name": product_name,
+                                    "pnp_id": dev_path,
+                                    "hardware_id": f"VID_{vid}&PID_{pid}",
+                                    "vendor_id": vid,
+                                    "product_id": pid,
+                                    "vendor_name": vendor_name,
+                                    "serial_number": serial,
+                                    "status": "CONNECTED",
+                                    "is_wireless_dongle": True,
+                                    "safety_status": "SECURE_POINTER",
+                                    "keystroke_anomaly_risk": "LOW (0%)"
+                                })
+                            elif has_kb:
+                                peripherals.append({
+                                    "type": "EXTERNAL_KEYBOARD",
+                                    "category": "HID_PERIPHERALS",
+                                    "name": f"{vendor_name} Keyboard" if vendor_name != "Unknown Hardware Vendor" else product_name,
+                                    "friendly_name": product_name,
+                                    "pnp_id": dev_path,
+                                    "hardware_id": f"VID_{vid}&PID_{pid}",
+                                    "vendor_id": vid,
+                                    "product_id": pid,
+                                    "vendor_name": vendor_name,
+                                    "serial_number": serial,
+                                    "status": "CONNECTED",
+                                    "is_wireless_dongle": False,
+                                    "safety_status": "MONITORED_KEYBOARD",
+                                    "keystroke_anomaly_risk": "PASSIVE_MONITORING"
+                                })
+                            elif has_hid:
+                                peripherals.append({
+                                    "type": "HID_RECEIVER_OR_DONGLE",
+                                    "category": "HID_PERIPHERALS",
+                                    "name": f"{vendor_name} {product_name}",
+                                    "friendly_name": product_name,
+                                    "pnp_id": dev_path,
+                                    "hardware_id": f"VID_{vid}&PID_{pid}",
+                                    "vendor_id": vid,
+                                    "product_id": pid,
+                                    "vendor_name": vendor_name,
+                                    "serial_number": serial,
+                                    "status": "CONNECTED",
+                                    "is_wireless_dongle": True,
+                                    "safety_status": "SECURE_HID",
+                                    "keystroke_anomaly_risk": "LOW"
+                                })
+                                
+                            if has_webcam:
+                                integrated_devices.append({
+                                    "name": product_name,
+                                    "category": "INTEGRATED_SYSTEM",
+                                    "type": "WEBCAM",
+                                    "pnp_class": "Camera",
+                                    "hardware_id": f"VID_{vid}&PID_{pid}",
+                                    "vendor_id": vid,
+                                    "product_id": pid,
+                                    "vendor_name": vendor_name,
+                                    "pnp_id": dev_path,
+                                    "status": "OK"
+                                })
+                            elif has_bt:
+                                integrated_devices.append({
+                                    "name": product_name,
+                                    "category": "INTEGRATED_SYSTEM",
+                                    "type": "BLUETOOTH_ADAPTER",
+                                    "pnp_class": "Bluetooth",
+                                    "hardware_id": f"VID_{vid}&PID_{pid}",
+                                    "vendor_id": vid,
+                                    "product_id": pid,
+                                    "vendor_name": vendor_name,
+                                    "pnp_id": dev_path,
+                                    "status": "OK"
+                                })
+                            elif not is_storage and not (has_mouse or has_kb or has_hid):
+                                integrated_devices.append({
+                                    "name": product_name,
+                                    "category": "INTEGRATED_SYSTEM",
+                                    "type": "SYSTEM_CONTROLLER",
+                                    "pnp_class": "USBDevice",
+                                    "hardware_id": f"VID_{vid}&PID_{pid}",
+                                    "vendor_id": vid,
+                                    "product_id": pid,
+                                    "vendor_name": vendor_name,
+                                    "pnp_id": dev_path,
+                                    "status": "OK"
+                                })
+
+                storage_devices = self._scan_linux_storage_devices()
+
+            except Exception as e:
+                logger.error(f"Failed to scan hardware topology on Linux: {e}")
+
         # Summary Metrics
         total_ports = sum(h.get("estimated_ports", 4) for h in hubs)
         topology = {
@@ -560,6 +760,320 @@ class HardwareAgent:
                         "primary_threat": active_threats[0] if active_threats else None,
                     })
 
+        return drives
+
+    def _scan_linux_storage_devices(self) -> List[Dict[str, Any]]:
+        """
+        Discovers removable USB flash drives on Linux, including UNMOUNTED drives.
+        On Kali Linux, USB drives are NOT auto-mounted — we detect them via sysfs
+        and lsblk, then auto-mount using udisksctl if needed.
+        """
+        drives = []
+        seen_devices = set()
+        try:
+            import subprocess
+            import json as _json
+            import glob
+
+            def _read_sysfs(base_path: str, filename: str) -> str:
+                try:
+                    with open(os.path.join(base_path, filename), 'r') as f:
+                        return f.read().strip()
+                except (IOError, FileNotFoundError):
+                    return ""
+
+            def _auto_mount_device(block_dev: str) -> str:
+                """Try to auto-mount an unmounted USB block device. Returns mount point or ''."""
+                # Try udisksctl first (works without root on most distros)
+                try:
+                    result = subprocess.run(
+                        ['udisksctl', 'mount', '-b', block_dev, '--no-user-interaction'],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if result.returncode == 0:
+                        # Parse mount point from output like "Mounted /dev/sda1 at /run/media/user/LABEL"
+                        for token in result.stdout.strip().split(' at '):
+                            if token.startswith('/'):
+                                mp = token.rstrip('.')
+                                logger.info(f"Auto-mounted {block_dev} at {mp}")
+                                return mp
+                        # Alternative parsing
+                        if '/media/' in result.stdout or '/run/media/' in result.stdout or '/mnt/' in result.stdout:
+                            parts = result.stdout.strip().split()
+                            for p in parts:
+                                if p.startswith(('/media/', '/run/media/', '/mnt/')):
+                                    logger.info(f"Auto-mounted {block_dev} at {p.rstrip('.')}")
+                                    return p.rstrip('.')
+                except Exception as e:
+                    logger.debug(f"udisksctl mount failed for {block_dev}: {e}")
+
+                # Fallback: mount manually under /mnt/phantom_usb
+                try:
+                    mnt_dir = f"/mnt/phantom_usb_{os.path.basename(block_dev)}"
+                    os.makedirs(mnt_dir, exist_ok=True)
+                    result = subprocess.run(
+                        ['mount', block_dev, mnt_dir],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if result.returncode == 0:
+                        logger.info(f"Manual mount {block_dev} at {mnt_dir}")
+                        return mnt_dir
+                except Exception as e:
+                    logger.debug(f"Manual mount failed for {block_dev}: {e}")
+
+                return ""
+
+            def _find_usb_vid_pid(sysfs_block_path: str) -> dict:
+                """Traverse sysfs upward from a block device to find the USB VID/PID."""
+                vid, pid, serial_num, mfr, prod = "0000", "0000", "GENERIC", "", ""
+                try:
+                    real_path = os.path.realpath(sysfs_block_path)
+                    parts = real_path.split('/')
+                    for i in range(len(parts), 0, -1):
+                        candidate = '/'.join(parts[:i])
+                        if os.path.exists(os.path.join(candidate, 'idVendor')):
+                            vid = _read_sysfs(candidate, 'idVendor').upper()
+                            pid = _read_sysfs(candidate, 'idProduct').upper()
+                            serial_num = _read_sysfs(candidate, 'serial') or serial_num
+                            mfr = _read_sysfs(candidate, 'manufacturer') or mfr
+                            prod = _read_sysfs(candidate, 'product') or prod
+                            break
+                except Exception:
+                    pass
+                return {"vid": vid, "pid": pid, "serial": serial_num, "manufacturer": mfr, "product": prod}
+
+            def _build_drive_entry(dev_name: str, mountpoint: str, vid: str, pid: str,
+                                    serial: str, vendor: str, model: str, size_gb: float,
+                                    fstype: str) -> dict:
+                """Build a standardized storage device dictionary."""
+                vendor_name = USB_VENDOR_DB.get(vid, vendor if vendor not in ("Unknown", "") else "Unknown Hardware Vendor")
+
+                # Disk usage
+                used_gb, free_gb, percent_used = 0.0, size_gb, 0.0
+                if mountpoint and os.path.exists(mountpoint):
+                    try:
+                        usage = psutil.disk_usage(mountpoint)
+                        used_gb = round(usage.used / (1024**3), 2)
+                        free_gb = round(usage.free / (1024**3), 2)
+                        percent_used = usage.percent
+                        total_gb = round(usage.total / (1024**3), 2)
+                        if total_gb > 0:
+                            size_gb = total_gb
+                    except Exception:
+                        pass
+
+                # Threat scan on mount point root
+                active_threats = []
+                if mountpoint and os.path.exists(mountpoint):
+                    try:
+                        for fname in os.listdir(mountpoint):
+                            ext = os.path.splitext(fname)[1].lower()
+                            if ext in {".bat", ".cmd", ".ps1", ".vbs", ".js", ".exe", ".hta", ".scr", ".sh"} or fname.lower() == "autorun.inf":
+                                active_threats.append(fname)
+                    except Exception:
+                        pass
+
+                return {
+                    "type": "USB_FLASH_DRIVE",
+                    "category": "REMOVABLE_STORAGE",
+                    "model": model,
+                    "device_name": f"{vendor_name} Flash Storage" if vendor_name != "Unknown Hardware Vendor" else model,
+                    "vendor_name": vendor_name,
+                    "vendor_id": vid,
+                    "product_id": pid,
+                    "serial_number": serial,
+                    "pnp_id": f"/sys/block/{dev_name}",
+                    "hardware_id": f"VID_{vid}&PID_{pid}",
+                    "capacity_gb": size_gb,
+                    "mount_point": mountpoint or "(unmounted)",
+                    "filesystem": fstype or "FAT32",
+                    "used_gb": used_gb,
+                    "free_gb": free_gb,
+                    "percent_used": percent_used,
+                    "zero_trust_status": "UNTRUSTED",
+                    "triage_state": "ANALYSIS_READY",
+                    "is_active_triage": True,
+                    "has_threat": len(active_threats) > 0,
+                    "active_threats": active_threats,
+                    "primary_threat": active_threats[0] if active_threats else None,
+                }
+
+            # ── Strategy 1: Use lsblk to find USB block devices ──
+            try:
+                lsblk_output = subprocess.check_output(
+                    ['lsblk', '-Jbno', 'NAME,RM,SIZE,MOUNTPOINT,TRAN,VENDOR,MODEL,SERIAL,FSTYPE,TYPE'],
+                    text=True, timeout=5
+                )
+                lsblk_data = _json.loads(lsblk_output)
+                block_devices = lsblk_data.get('blockdevices', [])
+            except Exception:
+                block_devices = []
+
+            for dev in block_devices:
+                is_usb = dev.get('tran') == 'usb'
+                is_removable = dev.get('rm') in ('1', True, 1)
+
+                if not (is_usb or is_removable):
+                    continue
+
+                dev_name = dev.get('name', '')
+                dev_type = dev.get('type', '')
+
+                # Skip non-disk (loop, rom, etc.)
+                if dev_type not in ('disk', 'part', ''):
+                    continue
+
+                # Get partitions: either the device itself (if partition) or its children
+                partitions = []
+                if dev.get('children'):
+                    for child in dev['children']:
+                        partitions.append(child)
+                elif dev.get('fstype'):
+                    # The device itself is a partition (no partition table)
+                    partitions.append(dev)
+
+                if not partitions:
+                    # Whole disk with no filesystem and no partitions — still report it
+                    partitions.append(dev)
+
+                for part in partitions:
+                    part_name = part.get('name', dev_name)
+                    if part_name in seen_devices:
+                        continue
+                    seen_devices.add(part_name)
+
+                    block_path = f"/dev/{part_name}"
+                    mountpoint = part.get('mountpoint') or ''
+                    fstype = part.get('fstype') or ''
+
+                    # Skip system partitions
+                    if mountpoint in ('/', '/boot', '/boot/efi', '/home', '[SWAP]'):
+                        continue
+
+                    # ── AUTO-MOUNT if not mounted ──
+                    if not mountpoint and fstype:
+                        logger.info(f"Detected unmounted USB partition {block_path} (fstype={fstype}), attempting auto-mount...")
+                        mountpoint = _auto_mount_device(block_path)
+
+                    if not mountpoint and not fstype:
+                        # No filesystem on this partition/disk, still report as detected
+                        pass
+
+                    # Get VID/PID from sysfs
+                    sysfs_block = f"/sys/block/{dev_name}"
+                    if not os.path.exists(sysfs_block):
+                        sysfs_block = f"/sys/block/{part_name}"
+                    usb_info = _find_usb_vid_pid(sysfs_block)
+
+                    vendor = dev.get('vendor', '').strip() or usb_info['manufacturer'] or "Unknown"
+                    model = dev.get('model', '').strip() or usb_info['product'] or "USB Drive"
+                    serial = dev.get('serial') or usb_info['serial']
+
+                    # Parse size
+                    size_bytes = 0
+                    try:
+                        size_bytes = int(part.get('size', 0) or dev.get('size', 0))
+                    except (ValueError, TypeError):
+                        pass
+                    size_gb = round(size_bytes / (1024**3), 2) if size_bytes > 0 else 0.0
+
+                    entry = _build_drive_entry(
+                        dev_name=part_name,
+                        mountpoint=mountpoint,
+                        vid=usb_info['vid'],
+                        pid=usb_info['pid'],
+                        serial=serial,
+                        vendor=vendor,
+                        model=model,
+                        size_gb=size_gb,
+                        fstype=fstype
+                    )
+                    drives.append(entry)
+
+            # ── Strategy 2: Scan sysfs directly for USB mass storage not found by lsblk ──
+            # This catches drives that just appeared and lsblk hasn't seen yet
+            for block_dir in glob.glob('/sys/block/sd*'):
+                dev_name = os.path.basename(block_dir)
+                if dev_name in seen_devices:
+                    continue
+
+                # Check if this is a USB device by looking at removable flag and device path
+                removable = _read_sysfs(block_dir, 'removable')
+                real_path = os.path.realpath(block_dir)
+
+                if removable != '1' and '/usb' not in real_path:
+                    continue
+
+                seen_devices.add(dev_name)
+                usb_info = _find_usb_vid_pid(block_dir)
+                model = usb_info['product'] or "USB Drive"
+                vendor = usb_info['manufacturer'] or "Unknown"
+
+                # Read size
+                size_sectors = _read_sysfs(block_dir, 'size')
+                size_gb = round(int(size_sectors) * 512 / (1024**3), 2) if size_sectors.isdigit() else 0.0
+
+                # Find partitions under this block device
+                part_dirs = glob.glob(os.path.join(block_dir, f'{dev_name}*'))
+                part_devices = []
+                for pd in part_dirs:
+                    pname = os.path.basename(pd)
+                    if pname != dev_name and _read_sysfs(pd, 'partition'):
+                        part_devices.append(pname)
+
+                if not part_devices:
+                    part_devices = [dev_name]
+
+                for part_name in part_devices:
+                    if part_name in seen_devices and part_name != dev_name:
+                        continue
+                    seen_devices.add(part_name)
+
+                    block_path = f"/dev/{part_name}"
+                    mountpoint = ""
+
+                    # Check /proc/mounts for current mount
+                    try:
+                        with open('/proc/mounts', 'r') as mf:
+                            for line in mf:
+                                fields = line.split()
+                                if len(fields) >= 2 and fields[0] == block_path:
+                                    mountpoint = fields[1]
+                                    break
+                    except Exception:
+                        pass
+
+                    # Try auto-mount if not mounted
+                    if not mountpoint and os.path.exists(block_path):
+                        logger.info(f"Sysfs detected unmounted USB device {block_path}, attempting auto-mount...")
+                        mountpoint = _auto_mount_device(block_path)
+
+                    # Determine fstype
+                    fstype = ""
+                    try:
+                        blkid_result = subprocess.run(
+                            ['blkid', '-o', 'value', '-s', 'TYPE', block_path],
+                            capture_output=True, text=True, timeout=5
+                        )
+                        fstype = blkid_result.stdout.strip()
+                    except Exception:
+                        pass
+
+                    entry = _build_drive_entry(
+                        dev_name=part_name,
+                        mountpoint=mountpoint,
+                        vid=usb_info['vid'],
+                        pid=usb_info['pid'],
+                        serial=usb_info['serial'],
+                        vendor=vendor,
+                        model=model,
+                        size_gb=size_gb,
+                        fstype=fstype
+                    )
+                    drives.append(entry)
+
+        except Exception as e:
+            logger.warning(f"Error enumerating Linux storage: {e}")
         return drives
 
 hardware_agent = HardwareAgent()

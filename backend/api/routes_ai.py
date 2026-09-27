@@ -125,3 +125,30 @@ def regenerate_report(session_id: str):
     if "error" in report:
         raise HTTPException(status_code=404, detail=report["error"])
     return report
+
+@router.get("/voice")
+async def get_neural_voice(text: str, voice: str = "en-US-ChristopherNeural"):
+    """
+    Streams studio-grade neural voice speech for tactical security awareness briefings.
+    Uses Microsoft Neural AI speech synthesis.
+    """
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Text is required")
+
+    try:
+        import edge_tts
+        import io
+
+        clean_text = text.strip()[:250]
+        communicate = edge_tts.Communicate(clean_text, voice, rate="+3%", pitch="+1Hz")
+        
+        audio_stream = io.BytesIO()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_stream.write(chunk["data"])
+        
+        audio_stream.seek(0)
+        return StreamingResponse(audio_stream, media_type="audio/mpeg")
+    except Exception as e:
+        logger.error(f"Neural voice generation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

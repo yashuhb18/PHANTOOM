@@ -17,6 +17,8 @@ import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
 import { LandingPage } from './pages/LandingPage';
 import { HardwarePorts } from './pages/HardwarePorts';
+import { ThreatAnalyticsPage } from './pages/ThreatAnalyticsPage';
+import { USBFootprintsPage } from './pages/USBFootprintsPage';
 
 function AppContent() {
   const [currentTab, setCurrentTab] = useState('landing');
@@ -42,7 +44,9 @@ function AppContent() {
       {currentTab === 'ports' && (
         <HardwarePorts setTab={setCurrentTab} setSelectedSessionId={setSelectedSessionId} />
       )}
+      {currentTab === 'footprints' && <USBFootprintsPage />}
       {currentTab === 'live' && <LiveMonitor />}
+      {currentTab === 'analytics' && <ThreatAnalyticsPage />}
       {currentTab === 'sessions' && (
         <SessionDetail sessionId={selectedSessionId} />
       )}

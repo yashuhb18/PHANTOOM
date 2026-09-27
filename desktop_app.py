@@ -47,7 +47,31 @@ def open_native_window(app_url="http://127.0.0.1:8001"):
     except Exception as e:
         print(f"pywebview failed: {e}, falling back to Edge App mode.")
 
-    # 2. Try Microsoft Edge in App Mode (Chromeless native window on Windows)
+    # 2. Try Linux browsers in App Mode (Chromeless window)
+    if sys.platform.startswith("linux"):
+        linux_browsers = [
+            "chromium-browser",
+            "chromium",
+            "google-chrome",
+            "google-chrome-stable",
+            "brave-browser",
+            "firefox",
+        ]
+        for browser_cmd in linux_browsers:
+            try:
+                import shutil
+                if shutil.which(browser_cmd):
+                    if "firefox" in browser_cmd:
+                        cmd = [browser_cmd, "--new-window", app_url]
+                    else:
+                        cmd = [browser_cmd, f"--app={app_url}", "--window-size=1440,900"]
+                    proc = subprocess.Popen(cmd)
+                    proc.wait()
+                    return True
+            except Exception:
+                continue
+
+    # 3. Try Microsoft Edge in App Mode (Chromeless native window on Windows)
     edge_paths = [
         r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
         r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",

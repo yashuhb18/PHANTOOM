@@ -141,6 +141,22 @@ AUTORUN_INDICATORS = [
     (r"(?i)action\s*=", "AUTORUN_ACTION", 20),
 ]
 
+LINUX_SHELL_INDICATORS = [
+    (r"(?i)/bin/(bash|sh|zsh)", "SHELL_INVOCATION", 20),
+    (r"(?i)/dev/tcp/\d+\.\d+\.\d+\.\d+", "BASH_REVERSE_SHELL", 50),
+    (r"(?i)(nc|netcat|socat)\s+.*-e\s+/bin/", "NETCAT_REVERSE_SHELL", 50),
+    (r"(?i)curl\s+.*\|\s*(bash|sh)", "CURL_PIPE_EXEC", 45),
+    (r"(?i)wget\s+.*\|\s*(bash|sh)", "WGET_PIPE_EXEC", 45),
+    (r"(?i)chmod\s+(\+x|[0-7]{3,4})", "PERMISSION_ESCALATION", 25),
+    (r"(?i)base64\s+-d", "BASE64_DECODE_EXEC", 35),
+    (r"(?i)/etc/(shadow|passwd)", "CREDENTIAL_SNOOPING", 45),
+    (r"(?i)crontab\s+", "CRON_PERSISTENCE", 35),
+    (r"(?i)systemctl\s+(start|enable)", "SERVICE_PERSISTENCE", 30),
+    (r"(?i)(exfiltration|reverse-shell|badusb|malware|payload|dropper|stealer|unauthorized)", "MALICIOUS_KEYWORD", 35),
+    (r"(?i)python3?\s+-c\s+[\"'].*socket", "PYTHON_REVERSE_SHELL", 45),
+]
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ENTROPY ANALYSIS — detect packed/encrypted/obfuscated payloads
 # ─────────────────────────────────────────────────────────────────────────────
@@ -603,6 +619,8 @@ class ThreatScanner:
             patterns = POWERSHELL_INDICATORS
         elif ext in {".bat", ".cmd"}:
             patterns = BATCH_INDICATORS
+        elif ext in {".sh", ".bash", ".zsh"}:
+            patterns = LINUX_SHELL_INDICATORS
         elif ext in {".vbs", ".vbe"}:
             patterns = VBSCRIPT_INDICATORS
         elif ext in {".js", ".jse", ".wsf", ".wsh", ".ws"}:
@@ -610,8 +628,8 @@ class ThreatScanner:
         elif ext == ".inf" or filepath.lower().endswith("autorun.inf"):
             patterns = AUTORUN_INDICATORS
         else:
-            # For other script types, check PowerShell + batch patterns (catch polyglot attacks)
-            patterns = POWERSHELL_INDICATORS + BATCH_INDICATORS
+            # For other script types, check Linux shell + PowerShell + batch patterns
+            patterns = LINUX_SHELL_INDICATORS + POWERSHELL_INDICATORS + BATCH_INDICATORS
             # Also check for generic obfuscation
             if len(content) > 100:
                 # Count lines with very long strings (potential obfuscation)
@@ -784,6 +802,36 @@ class ThreatScanner:
             }
         }
         self._broadcast_safe(ws_manager.broadcast_live(event_data))
+
+        # Record alert in database and announce via AI Narrator if threat_score >= 25
+        if result.get("threat_score", 0) >= 25:
+            try:
+                from backend.database import get_db
+                conn = get_db()
+                cursor = conn.cursor()
+                indicators_str = ", ".join([i.get("indicator", "") for i in result.get("threat_indicators", [])[:3]])
+                cursor.execute("""
+                    INSERT INTO alerts (session_id, alert_type, severity, title, description, mitre_technique, status, created_at)
+                    VALUES (?, 'FILE_THREAT_DETECTED', ?, ?, ?, 'T1204.002', 'DETECTED', ?)
+                """, (
+                    session_id,
+                    severity,
+                    f"Malicious File Detected: {result['file_name']}",
+                    f"Threat Scanner identified dangerous payload in {result['file_name']} (Score: {result['threat_score']}). Indicators: {indicators_str}",
+                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                ))
+                conn.commit()
+                conn.close()
+
+                # Dispatch AI Threat Narrator line so the voice engine announces it live!
+                self._broadcast_safe(ws_manager.broadcast_narrator({
+                    "session_id": session_id,
+                    "narration": f"⚠️ Threat Alert: Suspicious payload '{result['file_name']}' detected on USB storage. Indicators: {indicators_str}. Threat Score: {result['threat_score']}.",
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "severity": severity
+                }))
+            except Exception as e:
+                logger.debug(f"Error recording file threat alert: {e}")
 
     def _broadcast_scan_status(self, session_id: str, status: str, data: Dict[str, Any]):
         """Broadcasts scan progress/status updates."""

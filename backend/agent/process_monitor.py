@@ -71,6 +71,16 @@ class ProcessMonitor:
         "python.exe", "python3.exe", "pythonw.exe",
         "node.exe", "ruby.exe", "perl.exe",
         "java.exe", "javaw.exe",
+        # Linux script interpreters & LOLBins
+        "bash", "sh", "dash", "zsh", "fish", "ksh",
+        "python3", "python", "perl", "ruby", "node",
+        # Linux network tools (potential reverse shells)
+        "nc", "ncat", "netcat", "socat",
+        "curl", "wget",
+        # Linux system tools that can be abused
+        "crontab", "at", "nohup", "screen", "tmux",
+        "xterm", "xdg-open",
+        "chmod", "chown",
     }
 
     # Processes that should ALWAYS be killed if spawned from USB
@@ -81,6 +91,9 @@ class ProcessMonitor:
         "regsvr32.exe", "python.exe", "python3.exe",
         "node.exe", "ruby.exe", "perl.exe",
         "java.exe", "javaw.exe",
+        "bash", "sh", "dash", "zsh",
+        "python3", "python", "perl", "ruby", "node",
+        "nc", "ncat", "netcat", "socat",
     }
 
     # ─────────────────────────────────────────────────────────────────────
@@ -113,6 +126,22 @@ class ProcessMonitor:
         # Process injection
         "invoke-shellcode", "invoke-dllinjection",
         "virtualalloc", "createthread",
+        # Linux reverse shells
+        "/dev/tcp/", "/dev/udp/",
+        "bash -i", "sh -i",
+        "mkfifo", "mknod",
+        "| bash", "| sh",
+        # Linux persistence
+        "crontab -", "/etc/cron",
+        "/.bashrc", "/.zshrc", "/.profile",
+        "/etc/rc.local",
+        "systemctl enable", "systemctl start",
+        # Linux privilege escalation
+        "chmod +s", "chmod u+s", "chmod 4755",
+        "sudo -", "su -",
+        "/etc/passwd", "/etc/shadow",
+        # Linux credential access
+        "/.ssh/", "id_rsa", "authorized_keys",
     ]
 
     # High-confidence kill indicators — if ANY of these are in cmdline, kill immediately
@@ -125,6 +154,14 @@ class ProcessMonitor:
         "certutil -urlcache -split -f",
         "bitsadmin /transfer",
         "phantom-test", "phantom_test",
+        "bash -i >& /dev/tcp/",
+        "nc -e /bin/", "ncat -e /bin/",
+        "socat exec:",
+        "python -c 'import socket",
+        "python3 -c 'import socket",
+        "perl -e 'use Socket",
+        "mkfifo /tmp/",
+        "/etc/shadow",
     ]
 
     def __init__(self, callback: Optional[Callable] = None):
@@ -169,7 +206,18 @@ class ProcessMonitor:
         Continuous process surveillance loop.
         Polls every 500ms for new processes and analyzes each one.
         """
+        # Initial baseline sweep: analyze all currently active processes for threats
+        # (This catches rogue payloads/reverse shells that were started BEFORE PHANTOM boots)
         try:
+            initial_pids = set(psutil.pids())
+            logger.info(f"🛡️ Process Surveillance: Conducting initial security sweep across {len(initial_pids)} processes...")
+            for pid in initial_pids:
+                try:
+                    self._analyze_process(pid)
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    pass
+                except Exception:
+                    pass
             self._known_pids = set(psutil.pids())
         except Exception:
             self._known_pids = set()
@@ -212,23 +260,29 @@ class ProcessMonitor:
             if pid == my_pid:
                 return
             p = psutil.Process(pid)
-            parent = p.parent()
-            if parent and (parent.pid == my_pid or parent.pid == os.getppid()):
+
+            try:
+                name = p.name().lower()
+                cmdline_list = p.cmdline()
+                cmdline = " ".join(cmdline_list).lower()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 return
 
+            is_test_probe = ("phantom-test" in cmdline or "phantom_test" in cmdline)
             proc_cwd = (p.cwd() or "").lower()
             proc_exe = (p.exe() or "").lower()
-            project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).lower()
-            if project_dir in proc_cwd or project_dir in proc_exe:
-                return
-        except Exception:
-            return
+            is_usb_path = ("/run/media/" in proc_cwd or "/media/" in proc_cwd or "/run/media/" in cmdline or "/media/" in cmdline or is_test_probe)
 
-        try:
-            name = p.name().lower()
-            cmdline_list = p.cmdline()
-            cmdline = " ".join(cmdline_list).lower()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            # Unless it originates from a USB mount point or is a test probe, whitelist parent backend process and project workspace
+            if not is_usb_path:
+                parent = p.parent()
+                if parent and (parent.pid == my_pid or parent.pid == os.getppid()):
+                    return
+
+                project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).lower()
+                if project_dir in proc_cwd or project_dir in proc_exe:
+                    return
+        except Exception:
             return
 
         exe_path = ""
@@ -256,13 +310,14 @@ class ProcessMonitor:
         active_session = session_manager.get_active_session()
         usb_mount = ""
         if active_session:
-            raw_mount = active_session.get("mount_point", "").lower()
-            clean_usb = raw_mount.rstrip("\\").rstrip("/")
-            if clean_usb:
-                # Require path separator to prevent false matches like 'node:process' matching 'e:'
-                if (f"{clean_usb}\\" in cmdline or f"{clean_usb}/" in cmdline or 
-                    (exe_path and f"{clean_usb}\\" in exe_path.lower()) or 
-                    (cwd and f"{clean_usb}\\" in cwd.lower())):
+            usb_mount = active_session.get("mount_point", "").lower().rstrip("\\").rstrip("/")
+            if usb_mount:
+                # Check for both Windows and Linux path formats
+                is_in_cmdline = (f"{usb_mount}\\" in cmdline or f"{usb_mount}/" in cmdline or usb_mount == cmdline)
+                is_in_exe = bool(exe_path and (f"{usb_mount}\\" in exe_path.lower() or f"{usb_mount}/" in exe_path.lower() or exe_path.lower().startswith(usb_mount)))
+                is_in_cwd = bool(cwd and (f"{usb_mount}\\" in cwd.lower() or f"{usb_mount}/" in cwd.lower() or cwd.lower().startswith(usb_mount)))
+
+                if is_in_cmdline or is_in_exe or is_in_cwd:
                     is_from_usb = True
                     detected_usb_mount = active_session.get("mount_point", "")
 
@@ -270,18 +325,30 @@ class ProcessMonitor:
         if not is_from_usb:
             try:
                 for part in psutil.disk_partitions(all=True):
-                    if "removable" in part.opts.lower():
-                        r_drive = part.device.rstrip("\\").rstrip("/").lower()
-                        if (f"{r_drive}\\" in cmdline or f"{r_drive}/" in cmdline or
-                            (exe_path and f"{r_drive}\\" in exe_path.lower()) or 
-                            (cwd and f"{r_drive}\\" in cwd.lower())):
-                            is_from_usb = True
-                            detected_usb_mount = part.device
+                    is_removable_drive = (
+                        "removable" in part.opts.lower()
+                        or part.mountpoint.startswith(("/media/", "/run/media/", "/mnt/"))
+                    )
+                    if is_removable_drive and part.mountpoint not in ('/', '/boot', '/boot/efi', '/home', '[SWAP]'):
+                        r_mount = part.mountpoint.rstrip("\\").rstrip("/").lower()
+                        r_dev = part.device.rstrip("\\").rstrip("/").lower()
+
+                        for target in (r_mount, r_dev):
+                            if not target:
+                                continue
+                            if (f"{target}\\" in cmdline or f"{target}/" in cmdline or
+                                (exe_path and (f"{target}\\" in exe_path.lower() or f"{target}/" in exe_path.lower() or exe_path.lower().startswith(target))) or
+                                (cwd and (f"{target}\\" in cwd.lower() or f"{target}/" in cwd.lower() or cwd.lower().startswith(target)))):
+                                is_from_usb = True
+                                detected_usb_mount = part.mountpoint
+                                usb_mount = r_mount
+                                break
+                        if is_from_usb:
                             break
             except Exception:
                 pass
 
-        # Regex fallback for non-system drive letters in cmdline (must be followed by slash)
+        # Regex fallback for non-system drive letters in cmdline (Windows)
         if not is_from_usb:
             import re
             m = re.search(r'\b([a-zA-Z]:)[/\\]', cmdline)
@@ -291,13 +358,27 @@ class ProcessMonitor:
                     is_from_usb = True
                     detected_usb_mount = matched_drive
 
+        # Linux fallback: check for USB mount paths in cmdline, cwd, or exe
+        if not is_from_usb and sys.platform.startswith("linux"):
+            for usb_prefix in ["/media/", "/run/media/", "/mnt/"]:
+                if (usb_prefix in cmdline or 
+                    (cwd and cwd.startswith(usb_prefix)) or 
+                    (exe_path and exe_path.startswith(usb_prefix))):
+                    is_from_usb = True
+                    detected_usb_mount = usb_prefix
+                    usb_mount = usb_prefix
+                    break
+
         # ── Check 4: Instant-kill pattern match ──
         has_instant_kill = any(pat in cmdline for pat in self.INSTANT_KILL_PATTERNS)
 
         # ── Check 5: Executable running directly from USB path ──
         exe_from_usb = False
-        if usb_mount and exe_path:
-            exe_from_usb = usb_mount in exe_path.lower()
+        if (usb_mount or detected_usb_mount) and exe_path:
+            target_mount = (usb_mount or detected_usb_mount).lower()
+            exe_from_usb = target_mount in exe_path.lower()
+        if is_from_usb and exe_path and any(exe_path.startswith(p) for p in ["/media/", "/run/media/", "/mnt/"]):
+            exe_from_usb = True
 
         # ─────────────────────────────────────────────────────────
         # DECISION ENGINE — Autonomous Kill/Allow

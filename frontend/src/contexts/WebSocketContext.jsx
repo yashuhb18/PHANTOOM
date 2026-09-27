@@ -11,6 +11,26 @@ export function WebSocketProvider({ children }) {
   const liveWsRef = useRef(null);
   const narratorWsRef = useRef(null);
 
+  // Load initial alerts from database so historical forensic narrations show on load
+  useEffect(() => {
+    fetch(`http://${window.location.hostname}:8001/api/alerts`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const initialNarrations = data.slice(0, 30).map((alert) => ({
+            session_id: alert.session_id,
+            narration: alert.description ? `${alert.title} — ${alert.description}` : alert.title,
+            text: alert.description ? `${alert.title} — ${alert.description}` : alert.title,
+            timestamp: alert.created_at,
+            severity: alert.severity,
+            mitre: alert.mitre_technique
+          }));
+          setNarratorMessages((prev) => (prev.length === 0 ? initialNarrations : prev));
+        }
+      })
+      .catch((e) => console.debug("Initial alerts load error:", e));
+  }, []);
+
   const connectSockets = () => {
     // 1. Live Telemetry WebSocket
     const liveUrl = `ws://${window.location.hostname}:8001/ws/live`;
@@ -48,6 +68,9 @@ export function WebSocketProvider({ children }) {
       wsNarrator.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          const rawText = data.narration || data.text || data.message || '';
+          data.narration = rawText;
+          data.text = rawText;
           setNarratorMessages((prev) => [data, ...prev.slice(0, 49)]);
         } catch (err) {
           console.error("Narrator WS parse error:", err);

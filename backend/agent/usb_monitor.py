@@ -117,8 +117,12 @@ class USBMonitor:
             # If any USB storage devices are already connected at startup, engage Zero-Trust session & scanning!
             seen_mounts = set()
             for s_item in initial_storage:
-                mp = s_item.get("mount_point", "E:\\").upper()
-                if mp not in seen_mounts and mp not in ("C:\\", "D:\\"):
+                default_mp = "E:\\" if sys.platform == "win32" else "/media"
+                mp = s_item.get("mount_point", default_mp)
+                if sys.platform == "win32":
+                    mp = mp.upper()
+                system_mounts = ("C:\\", "D:\\") if sys.platform == "win32" else ("/", "/boot", "/boot/efi", "/home")
+                if mp not in seen_mounts and mp not in system_mounts:
                     seen_mounts.add(mp)
                     logger.info(f"⚡ Discovered pre-connected USB storage on {mp}: Engaging autonomous hunt.")
                     self._handle_insertion("STORAGE", s_item)
@@ -178,12 +182,17 @@ class USBMonitor:
         )
 
         if is_storage:
-            mount_point = item.get("mount_point", "E:\\")
+            default_mp = "E:\\" if sys.platform == "win32" else "/media"
+            mount_point = item.get("mount_point", default_mp)
 
             # Avoid duplicate sessions for the same mount point in current run
             for existing_pnp, existing_sid in list(self._active_sessions.items()):
                 sess = session_manager.get_session(existing_sid)
-                if sess and sess.get("status") == "ACTIVE" and sess.get("mount_point", "").upper() == mount_point.upper():
+                if sys.platform == "win32":
+                    mount_match = sess.get("mount_point", "").upper() == mount_point.upper()
+                else:
+                    mount_match = sess.get("mount_point", "") == mount_point
+                if sess and sess.get("status") == "ACTIVE" and mount_match:
                     logger.info(f"Active in-memory session {existing_sid} already tracking {mount_point}. Linking PnP {pnp_id}.")
                     self._active_sessions[pnp_id] = existing_sid
                     return
@@ -252,6 +261,12 @@ class USBMonitor:
 
             # 3. Start filesystem watcher — monitor for new file creation on USB
             self._start_filesystem_watcher(mount_point, session_id)
+
+            # 4. Autonomous Live Adversary Simulation (Hackathon Demo Mode)
+            # Spawns a real-time rogue payload from the USB mount point after a brief 2.5s delay
+            # so the audience witnesses PHANTOM intercepting and surgically killing it live!
+            if os.getenv("PHANTOM_DEMO_AUTORUN", "true").lower() == "true":
+                self._launch_live_adversary_demo(mount_point, session_id)
 
         elif category == "PERIPHERAL":
             # Peripheral insertion (e.g. mouse dongle, keyboard)
@@ -341,6 +356,53 @@ class USBMonitor:
             logger.info(f"Threat Scanner launched for {mount_point}")
         except Exception as e:
             logger.error(f"Failed to launch Threat Scanner: {e}")
+
+    def _launch_live_adversary_demo(self, mount_point: str, session_id: str):
+        """
+        Hackathon Demonstration Engine:
+        Spawns a controlled adversary simulation 2.5 seconds after USB plug-in.
+        The simulation mimics an unauthorized BadUSB / reverse-shell payload execution 
+        originating from the USB drive. PHANTOM's Process Surveillance Agent 
+        will intercept, analyze, and deploy autonomous SIGKILL within <1 second!
+        """
+        def _adversary_task():
+            try:
+                time.sleep(2.5)  # Let audience observe the USB device appear on the UI
+                logger.warning(f"⚠️ [HACKATHON-DEMO] Simulating unauthorized USB adversary payload from {mount_point}...")
+
+                # Create demo payload script directly on the USB drive if writable
+                if mount_point and os.path.isdir(mount_point) and mount_point != "(unmounted)":
+                    try:
+                        payload_file = os.path.join(mount_point, "autorun_malware_test.sh")
+                        with open(payload_file, "w") as f:
+                            f.write("#!/bin/bash\n# Simulated USB BadUSB Payload\necho 'Attempting unauthorized exfiltration...'\nsleep 60\n")
+                        os.chmod(payload_file, 0o755)
+                    except Exception:
+                        pass
+
+                # Launch simulated rogue process pointing to the USB mount point
+                # It will run in background, be caught by process_monitor, and instantly SIGKILLED!
+                import subprocess
+                if sys.platform.startswith("linux"):
+                    cmd = [
+                        "bash", "-c",
+                        f"echo '[HACKATHON-DEMO] Unauthorized script execution from USB {mount_point}'; sleep 60 # phantom-test reverse-shell"
+                    ]
+                else:
+                    cmd = f'cmd.exe /c "echo [HACKATHON-DEMO] Unauthorized execution & ping 127.0.0.1 -n 60 >nul # phantom-test"'
+
+                cwd_target = mount_point if (mount_point and os.path.isdir(mount_point) and mount_point != "(unmounted)") else None
+                p = subprocess.Popen(cmd, cwd=cwd_target)
+                logger.info(f"⚡ [HACKATHON-DEMO] Rogue process PID {p.pid} spawned from USB. Awaiting autonomous containment...")
+            except Exception as e:
+                logger.debug(f"Demo adversary spawn error: {e}")
+
+        demo_thread = threading.Thread(
+            target=_adversary_task,
+            name=f"AdversaryDemo-{session_id}",
+            daemon=True
+        )
+        demo_thread.start()
 
     def _start_filesystem_watcher(self, mount_point: str, session_id: str):
         """

@@ -222,8 +222,75 @@ class AutorunGuardian:
         Detects if a USB payload tries to install persistence during a session.
         """
         if sys.platform != "win32":
+            # Linux persistence monitoring
+            import subprocess
+            home = os.path.expanduser("~")
+            autostart_dir = os.path.join(home, ".config", "autostart")
+            
+            # Capture baseline
+            baseline_files = {}
+            baseline_rc_hashes = {}
+            
+            # Track .desktop files in autostart
+            if os.path.isdir(autostart_dir):
+                for f in os.listdir(autostart_dir):
+                    fpath = os.path.join(autostart_dir, f)
+                    baseline_files[fpath] = os.path.getmtime(fpath) if os.path.exists(fpath) else 0
+            
+            # Track RC files
+            for rc in [".bashrc", ".zshrc", ".profile"]:
+                rc_path = os.path.join(home, rc)
+                if os.path.exists(rc_path):
+                    import hashlib
+                    with open(rc_path, "rb") as f:
+                        baseline_rc_hashes[rc_path] = hashlib.md5(f.read()).hexdigest()
+            
+            # Track crontab
+            baseline_crontab = ""
+            try:
+                result = subprocess.run(["crontab", "-l"], capture_output=True, text=True, timeout=5)
+                baseline_crontab = result.stdout
+            except Exception:
+                pass
+            
+            self._baseline_captured = True
+            logger.info(f"Autorun Guardian: Linux persistence baseline captured")
+            
             while self._running:
-                time.sleep(5.0)
+                try:
+                    time.sleep(3.0)
+                    
+                    # Check for new .desktop autostart files
+                    if os.path.isdir(autostart_dir):
+                        for f in os.listdir(autostart_dir):
+                            fpath = os.path.join(autostart_dir, f)
+                            if fpath not in baseline_files:
+                                baseline_files[fpath] = os.path.getmtime(fpath)
+                                self._handle_new_persistence(f"~/.config/autostart/{f}", fpath)
+                    
+                    # Check RC file modifications
+                    for rc_path, old_hash in list(baseline_rc_hashes.items()):
+                        if os.path.exists(rc_path):
+                            import hashlib
+                            with open(rc_path, "rb") as f:
+                                new_hash = hashlib.md5(f.read()).hexdigest()
+                            if new_hash != old_hash:
+                                baseline_rc_hashes[rc_path] = new_hash
+                                rc_name = os.path.basename(rc_path)
+                                self._handle_new_persistence(f"Shell RC Modified: ~/{rc_name}", rc_path)
+                    
+                    # Check crontab changes
+                    try:
+                        result = subprocess.run(["crontab", "-l"], capture_output=True, text=True, timeout=5)
+                        current_crontab = result.stdout
+                        if current_crontab != baseline_crontab and current_crontab.strip():
+                            baseline_crontab = current_crontab
+                            self._handle_new_persistence("Crontab Modified", current_crontab[:200])
+                    except Exception:
+                        pass
+                except Exception as e:
+                    logger.debug(f"Linux persistence monitor error: {e}")
+                    time.sleep(5.0)
             return
 
         try:
