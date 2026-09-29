@@ -32,6 +32,7 @@ import {
 import { UsbPhantomAssembly } from '../components/landing/UsbPhantomAssembly';
 import { PhantomFloatingLogo } from '../components/ai/PhantomFloatingLogo';
 import { SecOpsCopilotDrawer } from '../components/ai/SecOpsCopilotDrawer';
+import { PhantomScrollNarrator } from '../components/landing/PhantomScrollNarrator';
 import { useAuth } from '../hooks/useAuth';
 
 // Smooth Scroll-Reveal Wrapper using IntersectionObserver
@@ -196,7 +197,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
           SECTION 1: THE HERO SECTION (Cyber Yellow #FDE047)
           Balanced symmetrical curvature at bottom
           ========================================================================= */}
-      <section className="bg-[#FDE047] text-black relative z-10 rounded-b-[60px] md:rounded-b-[80px] pb-24 md:pb-36 pt-24 sm:pt-28 md:pt-32 px-6 md:px-12 shadow-2xl overflow-hidden">
+      <section id="hero" className="bg-[#FDE047] text-black relative z-10 rounded-b-[60px] md:rounded-b-[80px] pb-24 md:pb-36 pt-24 sm:pt-28 md:pt-32 px-6 md:px-12 shadow-2xl overflow-hidden">
 
         {/* Hero Body: 2 Columns */}
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
@@ -280,7 +281,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
       <section id="features" className="bg-[#0A0A0A] py-24 md:py-36 px-6 md:px-12 relative">
         
         {/* Tech Stack Horizontal Moving Marquee */}
-        <div className="max-w-7xl mx-auto mb-20 pb-12 border-b border-white/[0.06]">
+        <div id="kernel-defense" className="max-w-7xl mx-auto mb-20 pb-12 border-b border-white/[0.06]">
           <span className="text-xs font-mono text-neutral-500 uppercase tracking-widest block text-center mb-8">
             ENTERPRISE KERNEL DEFENSE INFRASTRUCTURE
           </span>
@@ -339,7 +340,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
           
           {/* Feature 1 */}
           <Reveal delay={100}>
-            <div className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+            <div data-narrator="feat-rogue" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
                   <Activity className="w-5 h-5" />
@@ -361,7 +362,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
           {/* Feature 2 */}
           <Reveal delay={200}>
-            <div className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+            <div data-narrator="feat-map" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
                   <Globe className="w-5 h-5" />
@@ -383,7 +384,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
           {/* Feature 3 */}
           <Reveal delay={300}>
-            <div className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+            <div data-narrator="feat-dna" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
                   <Dna className="w-5 h-5" />
@@ -405,7 +406,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
           {/* Feature 4 */}
           <Reveal delay={400}>
-            <div className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+            <div data-narrator="feat-canary" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
                   <Flame className="w-5 h-5" />
@@ -427,7 +428,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
           {/* Feature 5 */}
           <Reveal delay={500}>
-            <div className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+            <div data-narrator="feat-isolation" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
                   <Zap className="w-5 h-5" />
@@ -449,7 +450,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
           {/* Feature 6 */}
           <Reveal delay={600}>
-            <div className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+            <div data-narrator="feat-reports" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
                   <FileText className="w-5 h-5" />
@@ -477,7 +478,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
       {/* =========================================================================
           SECTION 3: EDR BLIND SPOT COMPARISON (High-Contrast Void)
           ========================================================================= */}
-      <section className="bg-[#0A0A0A] py-20 px-6 md:px-12 border-t border-white/[0.06]">
+      <section id="edr-blindspot" className="bg-[#0A0A0A] py-20 px-6 md:px-12 border-t border-white/[0.06]">
         <div className="max-w-7xl mx-auto">
           
           <Reveal>
@@ -670,7 +671,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
                 onClick={isAuthenticated ? onLaunchConsole : onOpenLogin}
                 className="bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-xs px-5 py-2 rounded-full pill-button transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <span>{isAuthenticated ? 'Launch Full Console' : 'Login to Console'}</span>
+                <span>{isAuthenticated ? 'Launch Full Console' : 'Get Started'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -714,7 +715,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
       {/* =========================================================================
           SECTION 6: LIQUID CTA BANNER (Asymmetrical Yellow Curve)
           ========================================================================= */}
-      <section className="bg-[#0A0A0A] py-16 px-6 md:px-12">
+      <section id="cta" className="bg-[#0A0A0A] py-16 px-6 md:px-12">
         <div className="max-w-7xl mx-auto">
           <div className="bg-[#FDE047] text-black rounded-[40px] md:rounded-[60px] p-10 md:p-16 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
             
@@ -776,6 +777,13 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
         </div>
       </footer>
+
+      {/* Sticky Bottom Scroll Narrator (Black Background, White Logo, White Text, Scroll Tracking) */}
+      <PhantomScrollNarrator
+        onGetStarted={onOpenLogin}
+        isAuthenticated={isAuthenticated}
+        onLaunchConsole={onLaunchConsole}
+      />
 
       {/* Circular Floating PHANTOM Logo Button */}
       <PhantomFloatingLogo

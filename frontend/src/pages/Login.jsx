@@ -16,7 +16,6 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { PhantomWalkthrough } from '../components/common/PhantomWalkthrough';
 
 export function Login({ onLoginSuccess, onBackToLanding, initialRegister = false }) {
   const [isRegister, setIsRegister] = useState(initialRegister);
@@ -449,12 +448,53 @@ export function Login({ onLoginSuccess, onBackToLanding, initialRegister = false
       )}
 
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* HOW IT WORKS — INTERACTIVE SPEAKING PHANTOM COMPANION          */}
+      {/* HOW IT WORKS MODAL                                             */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      <PhantomWalkthrough
-        isOpen={showHowItWorksModal}
-        onClose={() => setShowHowItWorksModal(false)}
-      />
+      {showHowItWorksModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#111113] border border-white/[0.1] rounded-[24px] max-w-xl w-full p-6 sm:p-8 shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
+              <div className="flex items-center gap-2.5">
+                <img src="/phantom-icon-white.png" alt="PHANTOM" className="w-5 h-5 object-contain" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  How PHANTOM Protects You
+                </h3>
+              </div>
+              <button onClick={() => setShowHowItWorksModal(false)} className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="py-5 space-y-3.5 text-xs text-neutral-300">
+              <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] flex items-start gap-3">
+                <Zap className="w-4 h-4 text-[#FDE047] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-white font-bold mb-0.5">Autonomous Zero-Day Intercept</h4>
+                  <p className="text-neutral-400 text-[11px]">Hardware implants and keystroke injectors are recognized and isolated in &lt;382 milliseconds.</p>
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] flex items-start gap-3">
+                <CheckCircle2 className="w-4 h-4 text-[#FDE047] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-white font-bold mb-0.5">Canary Deception Traps</h4>
+                  <p className="text-neutral-400 text-[11px]">Decoy files catch intruders with 0% false positives the second an unauthorized process reads them.</p>
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] flex items-start gap-3">
+                <Lock className="w-4 h-4 text-[#FDE047] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-white font-bold mb-0.5">Local DeepSeek AI Copilot</h4>
+                  <p className="text-neutral-400 text-[11px]">All threat forensic reasoning runs locally on your machine with 100% privacy.</p>
+                </div>
+              </div>
+            </div>
+            <div className="pt-4 border-t border-white/[0.08] flex justify-end">
+              <button onClick={() => setShowHowItWorksModal(false)} className="px-5 py-2 rounded-xl bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer">
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

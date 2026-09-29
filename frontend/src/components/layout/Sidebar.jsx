@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
-export function Sidebar({ currentTab, setTab, onOpenCopilot, onOpenTour }) {
+export function Sidebar({ currentTab, setTab, onOpenCopilot }) {
   const { logout, user } = useAuth();
 
   const navItems = [
@@ -76,21 +76,6 @@ export function Sidebar({ currentTab, setTab, onOpenCopilot, onOpenTour }) {
               AI
             </span>
           </button>
-
-          {onOpenTour && (
-            <button
-              onClick={onOpenTour}
-              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-full text-xs font-bold bg-white/[0.03] hover:bg-white/[0.07] text-neutral-300 hover:text-white border border-white/[0.08] hover:border-[#FDE047]/30 transition-all cursor-pointer group"
-            >
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-[#FDE047]" />
-                <span>PHANTOM Tour</span>
-              </div>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-white/[0.08] text-neutral-400 group-hover:text-white font-bold">
-                GUIDE
-              </span>
-            </button>
-          )}
         </div>
 
 

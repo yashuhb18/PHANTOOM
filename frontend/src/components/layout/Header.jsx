@@ -3,7 +3,7 @@ import { ExternalLink, Clock, Sparkles } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { formatISTTime } from '../../utils/time';
 
-export function Header({ currentTab, setTab, onOpenCopilot, onOpenTour }) {
+export function Header({ currentTab, setTab, onOpenCopilot }) {
   const { isLiveConnected, isNarratorConnected } = useWebSocket();
   const [istTime, setIstTime] = useState(() => formatISTTime(new Date(), { withSuffix: true }));
 
@@ -55,18 +55,6 @@ export function Header({ currentTab, setTab, onOpenCopilot, onOpenTour }) {
             NARRATOR: <strong className={isNarratorConnected ? 'text-[#FDE047]' : 'text-neutral-500'}>{isNarratorConnected ? 'ACTIVE' : 'IDLE'}</strong>
           </span>
         </div>
-
-        {/* Interactive Tour Button */}
-        {onOpenTour && (
-          <button
-            onClick={onOpenTour}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-[#FDE047]/30 text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer shrink-0"
-            title="Start Interactive PHANTOM Walkthrough"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#FDE047]" />
-            <span>Tour</span>
-          </button>
-        )}
 
         {/* SecOps Copilot button */}
         <button
