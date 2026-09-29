@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { getApiBase, safeJson, safeStorageGet } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -6,27 +7,27 @@ const DEFAULT_GOOGLE_CLIENT_ID = '28860016867-m9ejbahc5ohf8q9jeulrfsd97c6u0hb8.a
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('phantom_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      return null;
-    }
+    return safeStorageGet('phantom_user', null);
   });
 
   const [googleClientId, setGoogleClientId] = useState(DEFAULT_GOOGLE_CLIENT_ID);
   const tokenClientRef = useRef(null);
 
-  // Fetch Google Client ID from backend on mount
+  // Fetch Google Client ID from backend on mount safely
   useEffect(() => {
-    fetch('/api/auth/google/client-id')
-      .then(res => res.json())
-      .then(data => {
-        if (data.client_id) {
+    const fetchClientId = async () => {
+      try {
+        const apiBase = getApiBase();
+        const res = await fetch(`${apiBase}/api/auth/google/client-id`);
+        const data = await safeJson(res);
+        if (data && data.client_id) {
           setGoogleClientId(data.client_id);
         }
-      })
-      .catch(() => {});
+      } catch (e) {
+        // Silently use default client ID
+      }
+    };
+    fetchClientId();
   }, []);
 
   const login = (identifier, password) => {
@@ -42,16 +43,19 @@ export function AuthProvider({ children }) {
         token: 'token-admin-2026'
       };
       setUser(authUser);
-      localStorage.setItem('phantom_user', JSON.stringify(authUser));
+      try {
+        localStorage.setItem('phantom_user', JSON.stringify(authUser));
+      } catch (e) {}
       return { success: true };
     }
 
     // 2. Check locally registered users
     try {
-      const registered = JSON.parse(localStorage.getItem('phantom_users_db') || '[]');
-      const found = registered.find(
-        (u) => (u.username.toLowerCase() === cleanId || u.email.toLowerCase() === cleanId) && u.password === password
-      );
+      const registered = safeStorageGet('phantom_users_db', []);
+      const found = Array.isArray(registered) ? registered.find(
+        (u) => (u.username?.toLowerCase() === cleanId || u.email?.toLowerCase() === cleanId) && u.password === password
+      ) : null;
+
       if (found) {
         const authUser = {
           username: found.username,
@@ -61,11 +65,13 @@ export function AuthProvider({ children }) {
           token: `token-${found.username}-${Date.now()}`
         };
         setUser(authUser);
-        localStorage.setItem('phantom_user', JSON.stringify(authUser));
+        try {
+          localStorage.setItem('phantom_user', JSON.stringify(authUser));
+        } catch (e) {}
         return { success: true };
       }
     } catch (e) {
-      console.error('Error reading users db:', e);
+      console.error('Error checking local user db:', e);
     }
 
     return {
@@ -77,40 +83,46 @@ export function AuthProvider({ children }) {
   // Authenticate using Google ID Token (Credential)
   const loginWithGoogleCredential = async (credential) => {
     try {
-      const res = await fetch('/api/auth/google', {
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential })
       });
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
+      const data = await safeJson(res);
+      if (res.ok && data && data.success && data.user) {
         setUser(data.user);
-        localStorage.setItem('phantom_user', JSON.stringify(data.user));
+        try {
+          localStorage.setItem('phantom_user', JSON.stringify(data.user));
+        } catch (e) {}
         return { success: true, user: data.user };
       }
-      return { success: false, error: data.detail || 'Google authentication failed' };
+      return { success: false, error: (data && data.detail) || 'Google authentication failed' };
     } catch (err) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Network error during Google auth' };
     }
   };
 
   // Authenticate using Google OAuth2 Access Token
   const loginWithGoogleToken = async (accessToken) => {
     try {
-      const res = await fetch('/api/auth/google', {
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ access_token: accessToken })
       });
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
+      const data = await safeJson(res);
+      if (res.ok && data && data.success && data.user) {
         setUser(data.user);
-        localStorage.setItem('phantom_user', JSON.stringify(data.user));
+        try {
+          localStorage.setItem('phantom_user', JSON.stringify(data.user));
+        } catch (e) {}
         return { success: true, user: data.user };
       }
-      return { success: false, error: data.detail || 'Google authentication failed' };
+      return { success: false, error: (data && data.detail) || 'Google authentication failed' };
     } catch (err) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Network error during Google auth' };
     }
   };
 
@@ -136,7 +148,7 @@ export function AuthProvider({ children }) {
               }
             },
             error_callback: (err) => {
-              resolve({ success: false, error: err.message || 'Google Sign-In was cancelled or failed.' });
+              resolve({ success: false, error: err.message || 'Google Sign-In cancelled.' });
             }
           });
           client.requestAccessToken({ prompt: 'select_account' });
@@ -169,10 +181,10 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // Fallback if Google SDK failed to load (offline or blocked)
+      // Fallback if Google SDK failed to load
       resolve({
         success: false,
-        error: 'Google Sign-In SDK is loading or blocked by your browser/adblocker. Please allow accounts.google.com.'
+        error: 'Google Sign-In SDK is loading. Please refresh and try again.'
       });
     });
   };
@@ -183,9 +195,10 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const registered = JSON.parse(localStorage.getItem('phantom_users_db') || '[]');
-      const exists = registered.some(
-        (u) => u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === email.toLowerCase()
+      const registered = safeStorageGet('phantom_users_db', []);
+      const usersList = Array.isArray(registered) ? registered : [];
+      const exists = usersList.some(
+        (u) => u.username?.toLowerCase() === username.toLowerCase() || u.email?.toLowerCase() === email.toLowerCase()
       );
       if (exists) {
         return { success: false, error: 'Username or email is already registered.' };
@@ -199,8 +212,10 @@ export function AuthProvider({ children }) {
         created_at: new Date().toISOString()
       };
 
-      registered.push(newUser);
-      localStorage.setItem('phantom_users_db', JSON.stringify(registered));
+      usersList.push(newUser);
+      try {
+        localStorage.setItem('phantom_users_db', JSON.stringify(usersList));
+      } catch (e) {}
 
       const authUser = {
         username: newUser.username,
@@ -210,7 +225,9 @@ export function AuthProvider({ children }) {
         token: `token-${newUser.username}-${Date.now()}`
       };
       setUser(authUser);
-      localStorage.setItem('phantom_user', JSON.stringify(authUser));
+      try {
+        localStorage.setItem('phantom_user', JSON.stringify(authUser));
+      } catch (e) {}
       return { success: true };
     } catch (e) {
       return { success: false, error: 'Registration failed. Please try again.' };
@@ -219,7 +236,9 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('phantom_user');
+    try {
+      localStorage.removeItem('phantom_user');
+    } catch (e) {}
   };
 
   return (

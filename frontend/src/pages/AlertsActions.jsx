@@ -3,6 +3,7 @@ import { ShieldAlert, ShieldCheck, Zap, Lock } from 'lucide-react';
 import { AlertBadge } from '../components/common/AlertBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { formatISTFull } from '../utils/time';
+import { safeJson } from '../utils/api';
 
 export function AlertsActions() {
   const [alerts, setAlerts] = useState([]);
@@ -12,7 +13,8 @@ export function AlertsActions() {
   const loadAlerts = async () => {
     try {
       const res = await fetch(`http://${window.location.hostname}:8001/api/alerts`);
-      if (res.ok) setAlerts(await res.json());
+      const data = await safeJson(res, []);
+      if (Array.isArray(data)) setAlerts(data);
     } catch (e) {
       console.error("Failed to load alerts:", e);
     } finally {

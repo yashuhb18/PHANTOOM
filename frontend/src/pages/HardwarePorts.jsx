@@ -20,6 +20,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { safeJson } from '../utils/api';
 
 export function HardwarePorts({ setTab, setSelectedSessionId }) {
   const [topology, setTopology] = useState(null);
@@ -40,7 +41,7 @@ export function HardwarePorts({ setTab, setSelectedSessionId }) {
           reason: 'User safe hardware ejection from Port Topology'
         })
       });
-      const data = await res.json();
+      const data = await safeJson(res, {});
       if (res.ok) {
         showToast(`Drive ${mountPoint} safely ejected and unmounted.`);
         fetchTopology(true);
@@ -60,8 +61,8 @@ export function HardwarePorts({ setTab, setSelectedSessionId }) {
     try {
       const url = `http://${window.location.hostname}:8001/api/devices/topology`;
       const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await safeJson(res);
+      if (data) {
         setTopology(data);
         if (isManual) {
           showToast("Hardware topology refreshed: all laptop ports scanned.");
@@ -99,8 +100,8 @@ export function HardwarePorts({ setTab, setSelectedSessionId }) {
     setRefreshing(true);
     try {
       const res = await fetch(`http://${window.location.hostname}:8001/api/devices/scan`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await safeJson(res);
+      if (res.ok && data) {
         if (data.topology) setTopology(data.topology);
         showToast("Low-latency port rescan complete. Hardware matrix synchronized.");
       }

@@ -6,6 +6,7 @@ import { SimulateButton } from '../components/common/SimulateButton';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../hooks/useAuth';
 import { Zap, ArrowRight, Clock, MapPin, HardDrive, LogOut, AlertTriangle, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
+import { safeJson } from '../utils/api';
 
 export function Dashboard({ setTab, setSelectedSessionId }) {
   const { user } = useAuth();
@@ -71,8 +72,8 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
   const fetchStats = async () => {
     try {
       const res = await fetch(`http://${window.location.hostname}:8001/api/stats`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await safeJson(res);
+      if (data) {
         setStats(data);
       }
     } catch (e) {
@@ -83,8 +84,10 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
   const fetchSessions = async () => {
     try {
       const res = await fetch(`http://${window.location.hostname}:8001/api/sessions`);
-      const data = await res.json();
-      setSessions(data);
+      const data = await safeJson(res, []);
+      if (Array.isArray(data)) {
+        setSessions(data);
+      }
     } catch (e) {
       console.error("Failed to fetch sessions:", e);
     }
@@ -97,8 +100,8 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
   const fetchTopology = async () => {
     try {
       const res = await fetch(`http://${window.location.hostname}:8001/api/devices/topology`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await safeJson(res);
+      if (data) {
         setTopology(data);
       }
     } catch (e) {
@@ -117,7 +120,7 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
           reason: 'User safe ejection from dashboard'
         })
       });
-      const data = await res.json();
+      const data = await safeJson(res, {});
       if (res.ok) {
         setEjectToast(`Drive ${mountPoint} safely ejected and unmounted.`);
         setTimeout(() => setEjectToast(null), 4000);
@@ -150,7 +153,7 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
           filename: filename || 'something.bat'
         })
       });
-      const data = await res.json();
+      const data = await safeJson(res, {});
       if (res.ok && data.status === 'SUCCESS') {
         setDeletedSuccess(true);
         setEjectToast(`File "${filename || 'something.bat'}" successfully deleted from drive.`);

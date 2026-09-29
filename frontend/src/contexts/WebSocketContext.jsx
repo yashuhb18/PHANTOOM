@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { safeJson } from '../utils/api';
 
 const WebSocketContext = createContext(null);
 
@@ -14,7 +15,7 @@ export function WebSocketProvider({ children }) {
   // Load initial alerts from database so historical forensic narrations show on load
   useEffect(() => {
     fetch(`http://${window.location.hostname}:8001/api/alerts`)
-      .then((res) => res.json())
+      .then((res) => safeJson(res, []))
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           const initialNarrations = data.slice(0, 30).map((alert) => ({

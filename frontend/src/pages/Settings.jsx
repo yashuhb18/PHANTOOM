@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Usb, Cpu, Sparkles, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { LoadingState } from '../components/common/LoadingState';
+import { safeJson } from '../utils/api';
 
 export function Settings() {
   const [devices, setDevices] = useState([]);
@@ -11,7 +12,8 @@ export function Settings() {
   const loadDevices = async () => {
     try {
       const res = await fetch(`http://${window.location.hostname}:8001/api/devices`);
-      if (res.ok) setDevices(await res.json());
+      const data = await safeJson(res, []);
+      if (Array.isArray(data)) setDevices(data);
     } catch (e) {
       console.error("Error loading devices:", e);
     } finally {
@@ -23,8 +25,8 @@ export function Settings() {
     setTestingAi(true);
     try {
       const res = await fetch(`http://${window.location.hostname}:8001/api/ai/status`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await safeJson(res);
+      if (res.ok && data) {
         setAiStatus(data);
       } else {
         setAiStatus({ status: 'error', error: 'AI server responded with error' });
