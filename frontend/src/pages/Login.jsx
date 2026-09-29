@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  ShieldCheck, 
   Lock, 
   User, 
   Mail, 
@@ -13,18 +12,99 @@ import {
   FileText, 
   X, 
   Zap, 
-  Activity, 
   Radio, 
   ShieldAlert,
   Terminal,
   Cpu,
   CheckCircle2,
-  HardDrive,
-  Flame,
-  Layers
+  Shield,
+  Fingerprint,
+  Scan
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
+/* ─── Floating Particle Canvas ────────────────────────────────────── */
+function ParticleField() {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animId;
+    let particles = [];
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Create particles
+    for (let i = 0; i < 60; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 1.5 + 0.5,
+        opacity: Math.random() * 0.4 + 0.1,
+      });
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw connections
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(253, 224, 71, ${0.06 * (1 - dist / 120)})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw and move particles
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(253, 224, 71, ${p.opacity})`;
+        ctx.fill();
+      });
+
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 pointer-events-none z-0"
+    />
+  );
+}
+
+/* ─── Main Login Component ────────────────────────────────────────── */
 export function Login({ onLoginSuccess, onBackToLanding }) {
   const [isRegister, setIsRegister] = useState(false);
   const [identifier, setIdentifier] = useState('');
@@ -39,39 +119,24 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState('SOC Threat Hunter');
 
   const { login, loginWithGoogle, register } = useAuth();
 
-  // Simulated live telemetry feed in left-side cockpit
-  const [terminalLogs, setTerminalLogs] = useState([
-    { id: 1, time: '07:58:10', type: 'BUS_ENUM', msg: 'Hardware Sentinel listening on /dev/bus/usb/001' },
-    { id: 2, time: '07:58:11', type: 'DEVICE_AUDIT', msg: 'Removable media attached (VID:0781 PID:5581)' },
-    { id: 3, time: '07:58:12', type: 'VELOCITY_ALERT', msg: 'Keystroke injection rate: 850 CPS > 20 CPS limit' },
-    { id: 4, time: '07:58:12', type: 'MITRE_T1056', msg: 'Synthetic BadUSB injection classified' },
-    { id: 5, time: '07:58:13', type: 'AUTONOMOUS_KILL', msg: 'Recursive SIGKILL sent to PID 4182 (<32ms)' },
-    { id: 6, time: '07:58:13', type: 'ISOLATION', msg: 'Physical port unmounted & quarantined successfully' }
-  ]);
-
+  // Live clock
+  const [clock, setClock] = useState('');
   useEffect(() => {
-    const streamItems = [
-      { type: 'CANARY_WATCH', msg: 'Decoy honeytoken /media/passwords.xlsx armed' },
-      { type: 'ZERO_TRUST', msg: 'Hardware descriptor verified against known attack DNA' },
-      { type: 'AI_ANALYST', msg: 'DeepSeek-R1 triage engine running on local GPU' },
-      { type: 'CADENCE_CHECK', msg: 'Human typing cadence verified (nominal 14 CPS)' },
-      { type: 'SENTINEL_PULSE', msg: 'Autonomous Process Sentinel heartbeat nominal' }
-    ];
-
-    const interval = setInterval(() => {
-      const randomItem = streamItems[Math.floor(Math.random() * streamItems.length)];
-      const now = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
-      setTerminalLogs(prev => [
-        ...prev.slice(1),
-        { id: Date.now(), time: now, type: randomItem.type, msg: randomItem.msg }
-      ]);
-    }, 3800);
-
-    return () => clearInterval(interval);
+    const tick = () => {
+      setClock(new Date().toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, []);
 
   const handleLoginSubmit = (e) => {
@@ -101,11 +166,11 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
       username: regUsername,
       email: regEmail,
       password: regPassword,
-      role: regRole
+      role: 'Analyst'
     });
 
     if (res.success) {
-      setSuccessMsg('Analyst account created! Accessing SOC console...');
+      setSuccessMsg('Account created successfully! Entering console...');
       setTimeout(() => {
         if (onLoginSuccess) onLoginSuccess();
       }, 700);
@@ -129,424 +194,332 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col lg:flex-row bg-[#0A0A0A] text-white font-sans selection:bg-[#FDE047] selection:text-black">
-      
-      {/* ========================================================================= */}
-      {/* LEFT HALF: COMMAND COCKPIT & LIVE TELEMETRY SHOWCASE                       */}
-      {/* ========================================================================= */}
-      <div className="hidden lg:flex w-1/2 bg-[#0B0B0C] border-r border-white/[0.08] relative overflow-hidden flex-col justify-between p-10 xl:p-14 select-none">
-        {/* Subtle Ambient Background Gradients */}
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#FDE047]/10 rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#FDE047]/5 rounded-full blur-[160px] pointer-events-none" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+    <div className="h-screen w-screen overflow-hidden bg-[#060608] text-white font-sans selection:bg-[#FDE047] selection:text-black relative">
 
-        {/* Cockpit Top Bar */}
-        <div className="relative z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img
-                src="/phantom-logo-yellow.png"
-                alt="PHANTOM"
-                className="h-8 w-auto object-contain drop-shadow-[0_0_15px_rgba(253,224,71,0.3)]"
-              />
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[11px] font-mono font-bold text-emerald-400 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>AUTONOMOUS ENGINE ACTIVE</span>
-            </div>
+      {/* ─── Background Layers ────────────────────────────────────── */}
+      <ParticleField />
+
+      {/* Large radial blurs */}
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#FDE047]/[0.04] rounded-full blur-[180px] pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[-5%] w-[500px] h-[500px] bg-[#FDE047]/[0.03] rounded-full blur-[160px] pointer-events-none" />
+
+      {/* Subtle grid overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:48px_48px] pointer-events-none z-0" />
+
+      {/* ─── Top Bar ──────────────────────────────────────────────── */}
+      <header className="absolute top-0 left-0 right-0 z-20 px-6 sm:px-10 py-5 flex items-center justify-between">
+        {/* Left: Back + Logo */}
+        <div className="flex items-center gap-4">
+          {onBackToLanding && (
+            <button
+              onClick={onBackToLanding}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-white transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
+            </button>
+          )}
+          <img
+            src="/phantom-logo-yellow.png"
+            alt="PHANTOM"
+            className="h-7 w-auto object-contain drop-shadow-[0_0_20px_rgba(253,224,71,0.25)]"
+          />
+        </div>
+
+        {/* Right: How It Works + Rules + Clock */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHowItWorksModal(true)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-[#FDE047] transition-all cursor-pointer"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-[#FDE047]/70" />
+            <span>How It Works</span>
+          </button>
+
+          <button
+            onClick={() => setShowRulesModal(true)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-white transition-all cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Rules</span>
+          </button>
+
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[11px] font-mono text-neutral-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{clock} IST</span>
           </div>
+        </div>
+      </header>
 
-          <div className="mt-8">
-            <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight text-white leading-tight">
-              Hardware Threat Hunting & <br />
-              <span className="text-[#FDE047]">Autonomous Deception</span>
+      {/* ─── Centered Card ────────────────────────────────────────── */}
+      <div className="relative z-10 h-full flex items-center justify-center px-4">
+        <div className="w-full max-w-[420px]">
+
+          {/* Logo + Tagline (above card) */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#FDE047]/[0.08] border border-[#FDE047]/20 mb-5 shadow-[0_0_40px_rgba(253,224,71,0.08)]">
+              <Shield className="w-8 h-8 text-[#FDE047]" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Welcome to <span className="text-[#FDE047]">PHANTOM</span>
             </h1>
-            <p className="text-xs xl:text-sm text-neutral-400 mt-2.5 max-w-lg leading-relaxed">
-              Zero-Trust USB hardware bus auditing, real-time keystroke cadence defense, and surgical micro-isolation.
+            <p className="text-sm text-neutral-500 mt-1.5">
+              Autonomous USB Threat Defense Platform
             </p>
           </div>
-        </div>
 
-        {/* Cockpit Middle: Live Simulated Terminal Feed */}
-        <div className="relative z-10 my-6">
-          <div className="bg-[#121214] border border-white/[0.1] rounded-2xl overflow-hidden shadow-2xl">
-            {/* Terminal Window Header */}
-            <div className="px-4 py-2.5 bg-[#171719] border-b border-white/[0.08] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-                <span className="ml-2 text-[10px] font-mono text-neutral-400 flex items-center gap-1.5">
-                  <Terminal className="w-3 h-3 text-[#FDE047]" />
-                  <span>phantom-kernel-watcher.log</span>
-                </span>
-              </div>
-              <span className="text-[9px] font-mono text-neutral-500 bg-white/[0.04] px-2 py-0.5 rounded border border-white/[0.06]">
-                LIVE BUS
-              </span>
-            </div>
+          {/* Glass Card */}
+          <div className="bg-[#0E0E11]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[24px] p-6 sm:p-8 shadow-[0_8px_60px_rgba(0,0,0,0.5)]">
 
-            {/* Terminal Log Lines */}
-            <div className="p-4 space-y-2 font-mono text-[11px] h-[190px] overflow-hidden flex flex-col justify-end">
-              {terminalLogs.map((log) => {
-                const isAlert = log.type.includes('ALERT') || log.type.includes('KILL') || log.type.includes('MITRE');
-                return (
-                  <div key={log.id} className="flex items-start gap-2.5 leading-snug">
-                    <span className="text-neutral-500 shrink-0">{log.time}</span>
-                    <span
-                      className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
-                        isAlert
-                          ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                          : 'bg-amber-500/15 text-[#FDE047] border border-amber-500/30'
-                      }`}
-                    >
-                      {log.type}
-                    </span>
-                    <span className={`truncate ${isAlert ? 'text-neutral-200 font-semibold' : 'text-neutral-400'}`}>
-                      {log.msg}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Cockpit Bottom: 3 Core Pillars */}
-        <div className="relative z-10 grid grid-cols-3 gap-3 border-t border-white/[0.06] pt-6">
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-            <Zap className="w-4 h-4 text-[#FDE047] mb-1.5" />
-            <h4 className="text-xs font-bold text-white">Sub-45ms Kill</h4>
-            <p className="text-[10px] text-neutral-400 mt-0.5">Autonomous process tree annihilation</p>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-            <Radio className="w-4 h-4 text-emerald-400 mb-1.5" />
-            <h4 className="text-xs font-bold text-white">&gt;20 CPS Guard</h4>
-            <p className="text-[10px] text-neutral-400 mt-0.5">BadUSB cadence velocity intercept</p>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-            <Cpu className="w-4 h-4 text-[#FDE047] mb-1.5" />
-            <h4 className="text-xs font-bold text-white">DeepSeek-R1</h4>
-            <p className="text-[10px] text-neutral-400 mt-0.5">On-premise cyber intelligence model</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* RIGHT HALF: HIGH-PRECISION AUTHENTICATION PORTAL                           */}
-      {/* ========================================================================= */}
-      <div className="w-full lg:w-1/2 h-full flex flex-col justify-between p-6 sm:p-10 lg:p-12 overflow-y-auto relative bg-[#0A0A0A]">
-        {/* Subtle Ambient Radial Glow */}
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-[#FDE047]/5 rounded-full blur-[140px] pointer-events-none" />
-
-        {/* Top Navigation */}
-        <header className="flex items-center justify-between shrink-0 mb-6">
-          <div>
-            {onBackToLanding && (
+            {/* Mode Tabs */}
+            <div className="flex items-center p-1 bg-[#141416] rounded-full border border-white/[0.08] mb-6">
               <button
-                onClick={onBackToLanding}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+                type="button"
+                onClick={() => {
+                  setIsRegister(false);
+                  setError('');
+                  setSuccessMsg('');
+                }}
+                className={`flex-1 py-2 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${
+                  !isRegister
+                    ? 'bg-[#FDE047] text-black shadow-md shadow-amber-500/20'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Overview</span>
+                Sign In
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegister(true);
+                  setError('');
+                  setSuccessMsg('');
+                }}
+                className={`flex-1 py-2 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${
+                  isRegister
+                    ? 'bg-[#FDE047] text-black shadow-md shadow-amber-500/20'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                Create Account
+              </button>
+            </div>
+
+            {/* Error & Success Messages */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/25 text-red-300 text-xs rounded-xl flex items-center gap-2.5 animate-fadeIn">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                <span className="leading-snug">{error}</span>
+              </div>
+            )}
+            {successMsg && (
+              <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs rounded-xl flex items-center gap-2.5 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            {/* Google SSO Button */}
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="w-full py-3 px-4 rounded-2xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.1] hover:border-white/[0.2] text-sm font-medium text-white transition-all cursor-pointer flex items-center justify-center gap-3 mb-5 group"
+            >
+              <svg className="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z" />
+                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.99 0 12s.45 3.83 1.25 5.42l4.03-3.15z" />
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+
+            {/* Divider */}
+            <div className="relative flex items-center justify-center mb-5">
+              <div className="border-t border-white/[0.06] w-full" />
+              <span className="bg-[#0E0E11] px-3 text-[10px] font-mono uppercase text-neutral-600 tracking-wider shrink-0">
+                or
+              </span>
+              <div className="border-t border-white/[0.06] w-full" />
+            </div>
+
+            {/* ─── Sign In Form ─────────────────────────────────── */}
+            {!isRegister ? (
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-400 mb-1.5 ml-1">
+                    Username or Email
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-neutral-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      placeholder="Enter your username or email"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5 ml-1">
+                    <label className="text-[11px] font-medium text-neutral-400">
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={quickFillAdmin}
+                      className="text-[10px] font-medium text-[#FDE047]/70 hover:text-[#FDE047] hover:underline cursor-pointer transition-colors"
+                    >
+                      Use demo credentials
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-neutral-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-11 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      placeholder="••••••••••"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white cursor-pointer transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    type="submit"
+                    className="w-full py-3 px-4 rounded-xl bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-sm tracking-wide transition-all duration-200 cursor-pointer shadow-lg shadow-amber-500/15 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    <span>Sign In</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* ─── Registration Form ───────────────────────────── */
+              <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-400 mb-1.5 ml-1">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-neutral-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      placeholder="Pick a username"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-400 mb-1.5 ml-1">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-neutral-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      placeholder="your@email.com"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-400 mb-1.5 ml-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-neutral-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      className="w-full pl-10 pr-11 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      placeholder="Min 6 characters"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white cursor-pointer transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    type="submit"
+                    className="w-full py-3 px-4 rounded-xl bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-sm tracking-wide transition-all duration-200 cursor-pointer shadow-lg shadow-amber-500/15 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    <span>Create Account</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Bottom links (mobile) */}
+          <div className="sm:hidden flex items-center justify-center gap-4 mt-5">
             <button
               onClick={() => setShowHowItWorksModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-300 hover:text-[#FDE047] transition-all cursor-pointer"
+              className="text-[11px] text-neutral-500 hover:text-[#FDE047] transition-colors cursor-pointer flex items-center gap-1"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-[#FDE047]" />
-              <span>How It Works</span>
+              <HelpCircle className="w-3 h-3" /> How It Works
             </button>
-
             <button
               onClick={() => setShowRulesModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-300 hover:text-white transition-all cursor-pointer"
+              className="text-[11px] text-neutral-500 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Rules</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Centered Form Body */}
-        <div className="w-full max-w-sm mx-auto my-auto py-4">
-          {/* Mobile Only Logo */}
-          <div className="lg:hidden text-center mb-6">
-            <img
-              src="/phantom-logo-yellow.png"
-              alt="PHANTOM"
-              className="h-8 w-auto object-contain mx-auto mb-2 drop-shadow-[0_0_12px_rgba(253,224,71,0.25)]"
-            />
-            <p className="text-xs text-neutral-400">Autonomous USB Threat Hunting Platform</p>
-          </div>
-
-          {/* Heading */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold tracking-tight text-white">
-              {isRegister ? 'Create Analyst Profile' : 'SOC Analyst Login'}
-            </h2>
-            <p className="text-xs text-neutral-400 mt-1">
-              {isRegister 
-                ? 'Register your security credentials to access endpoint defense.' 
-                : 'Authenticate to access live telemetry and threat hunting console.'}
-            </p>
-          </div>
-
-          {/* Mode Tabs */}
-          <div className="flex items-center p-1 bg-[#141416] rounded-full border border-white/[0.08] mb-6">
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegister(false);
-                setError('');
-              }}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer ${
-                !isRegister
-                  ? 'bg-[#FDE047] text-black shadow-md'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegister(true);
-                setError('');
-              }}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer ${
-                isRegister
-                  ? 'bg-[#FDE047] text-black shadow-md'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              Create Account
+              <FileText className="w-3 h-3" /> Rules
             </button>
           </div>
 
-          {/* Error & Success Messages */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-xs rounded-xl flex items-center gap-2.5 animate-fadeIn">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-              <span className="leading-snug">{error}</span>
+          {/* Three Feature Pills */}
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[10px] text-neutral-500">
+              <Zap className="w-3 h-3 text-[#FDE047]/50" />
+              <span>Sub-45ms Kill</span>
             </div>
-          )}
-          {successMsg && (
-            <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl flex items-center gap-2.5 animate-fadeIn">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span>{successMsg}</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[10px] text-neutral-500">
+              <Scan className="w-3 h-3 text-[#FDE047]/50" />
+              <span>Zero-Trust Bus</span>
             </div>
-          )}
-
-          {/* Google SSO Button */}
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            className="w-full py-2.5 px-4 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.12] hover:border-white/[0.25] text-xs font-semibold text-white transition-all cursor-pointer flex items-center justify-center gap-3 shadow-sm hover:shadow-md mb-5 group"
-          >
-            {/* Google Logo */}
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.99 0 12s.45 3.83 1.25 5.42l4.03-3.15z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-              />
-            </svg>
-            <span>Continue with Google Workspace</span>
-          </button>
-
-          {/* Divider */}
-          <div className="relative flex items-center justify-center mb-5">
-            <div className="border-t border-white/[0.08] w-full" />
-            <span className="bg-[#0A0A0A] px-3 text-[10px] font-mono uppercase text-neutral-500 tracking-wider shrink-0">
-              Or with credentials
-            </span>
-            <div className="border-t border-white/[0.08] w-full" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[10px] text-neutral-500">
+              <Cpu className="w-3 h-3 text-[#FDE047]/50" />
+              <span>DeepSeek-R1 AI</span>
+            </div>
           </div>
-
-          {/* Sign In Form */}
-          {!isRegister ? (
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-mono text-neutral-400 mb-1.5 uppercase tracking-wider">
-                  Analyst ID / Email
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
-                  <input
-                    type="text"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#141416] border border-white/[0.1] rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047] focus:ring-1 focus:ring-[#FDE047] transition-all font-mono"
-                    placeholder="admin or user@phantom.sec"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider">
-                    Password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={quickFillAdmin}
-                    className="text-[10px] font-mono text-[#FDE047] hover:underline cursor-pointer"
-                  >
-                    Fill Demo Credentials
-                  </button>
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#141416] border border-white/[0.1] rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047] focus:ring-1 focus:ring-[#FDE047] transition-all font-mono"
-                    placeholder="••••••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3 text-neutral-500 hover:text-white cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="w-full py-3 px-4 rounded-full bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
-                >
-                  <span>Authenticate & Enter SOC</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          ) : (
-            /* Registration Form */
-            <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-              <div>
-                <label className="block text-[11px] font-mono text-neutral-400 mb-1 uppercase tracking-wider">
-                  Analyst Username
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
-                  <input
-                    type="text"
-                    value={regUsername}
-                    onChange={(e) => setRegUsername(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-[#141416] border border-white/[0.1] rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047] transition-all font-mono"
-                    placeholder="e.g. yashz"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono text-neutral-400 mb-1 uppercase tracking-wider">
-                  Corporate Email
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
-                  <input
-                    type="email"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-[#141416] border border-white/[0.1] rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047] transition-all font-mono"
-                    placeholder="analyst@enterprise.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono text-neutral-400 mb-1 uppercase tracking-wider">
-                  SOC Clearance Role
-                </label>
-                <select
-                  value={regRole}
-                  onChange={(e) => setRegRole(e.target.value)}
-                  className="w-full px-4 py-2 bg-[#141416] border border-white/[0.1] rounded-xl text-xs text-neutral-200 focus:outline-none focus:border-[#FDE047] transition-all font-mono cursor-pointer"
-                >
-                  <option value="Lead Threat Hunter">Lead Threat Hunter (Full Containment)</option>
-                  <option value="SOC Tier-2 Analyst">SOC Tier-2 Analyst (Triage & Hunting)</option>
-                  <option value="Security Engineer">Security Engineer (Deception & Canaries)</option>
-                  <option value="Incident Responder">Incident Responder (Forensics)</option>
-                  <option value="Compliance Auditor">Compliance Auditor (Read-Only SIEM)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono text-neutral-400 mb-1 uppercase tracking-wider">
-                  Master Password
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-neutral-500 absolute left-3.5 top-3" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2 bg-[#141416] border border-white/[0.1] rounded-xl text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047] transition-all font-mono"
-                    placeholder="Min 6 characters"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3 text-neutral-500 hover:text-white cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  className="w-full py-3 px-4 rounded-full bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
-                >
-                  <span>Create Account</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {/* Minimal Bottom Bar */}
-        <div className="text-center text-[11px] font-mono text-neutral-600 pt-2 shrink-0">
-          <span>PHANTOM Autonomous Defense Platform • Connected</span>
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* RULES & REGULATIONS / EULA MODAL                                          */}
-      {/* ========================================================================= */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* RULES & REGULATIONS MODAL                                  */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       {showRulesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-[#141416] border border-white/[0.12] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
+          <div className="bg-[#111113] border border-white/[0.1] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08] shrink-0">
               <div className="flex items-center gap-2.5">
                 <ShieldAlert className="w-5 h-5 text-[#FDE047]" />
@@ -592,7 +565,7 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
 
               <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
                 <h4 className="text-[#FDE047] font-bold mb-1">
-                  4. Multi-Tenant SOC Confidentiality
+                  4. Multi-Tenant Confidentiality
                 </h4>
                 <p className="text-neutral-400 text-[11px]">
                   All behavioral DNA token hashes, incident reports, and SIEM logs remain strictly localized within your cluster database. Zero telemetry is forwarded to external public cloud endpoints.
@@ -606,7 +579,7 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
               </span>
               <button
                 onClick={() => setShowRulesModal(false)}
-                className="px-5 py-2 rounded-full bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer"
               >
                 I Understand & Accept
               </button>
@@ -615,17 +588,17 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* HOW IT WORKS / PRODUCT WALKTHROUGH MODAL                                  */}
-      {/* ========================================================================= */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* HOW IT WORKS MODAL                                         */}
+      {/* ═══════════════════════════════════════════════════════════ */}
       {showHowItWorksModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-[#141416] border border-white/[0.12] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
+          <div className="bg-[#111113] border border-white/[0.1] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08] shrink-0">
               <div className="flex items-center gap-2.5">
                 <Zap className="w-5 h-5 text-[#FDE047]" />
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  How PHANTOM Works — 4-Stage Autonomous Defense
+                  How PHANTOM Works — 4-Stage Defense
                 </h3>
               </div>
               <button
@@ -637,7 +610,6 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
             </div>
 
             <div className="flex-1 overflow-y-auto py-5 space-y-3.5 font-mono text-xs leading-relaxed text-neutral-300 pr-1">
-              {/* Stage 1 */}
               <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
                 <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
                   1
@@ -652,7 +624,6 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                 </div>
               </div>
 
-              {/* Stage 2 */}
               <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
                 <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
                   2
@@ -667,7 +638,6 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                 </div>
               </div>
 
-              {/* Stage 3 */}
               <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
                 <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
                   3
@@ -682,7 +652,6 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                 </div>
               </div>
 
-              {/* Stage 4 */}
               <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
                 <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
                   4
@@ -701,9 +670,9 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
             <div className="pt-4 border-t border-white/[0.08] flex items-center justify-end shrink-0">
               <button
                 onClick={() => setShowHowItWorksModal(false)}
-                className="px-5 py-2 rounded-full bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer"
               >
-                Close Walkthrough
+                Close
               </button>
             </div>
           </div>
