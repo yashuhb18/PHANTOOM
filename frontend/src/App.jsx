@@ -24,12 +24,14 @@ import { SIEMHuntBoard } from './pages/SIEMHuntBoard';
 function AppContent() {
   const [currentTab, setCurrentTab] = useState('landing');
   const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [loginInitialRegister, setLoginInitialRegister] = useState(false);
   const { isAuthenticated } = useAuthContext();
 
   // If user navigates to login
   if (currentTab === 'login') {
     return (
       <Login 
+        initialRegister={loginInitialRegister}
         onLoginSuccess={() => setCurrentTab('dashboard')} 
         onBackToLanding={() => setCurrentTab('landing')} 
       />
@@ -40,10 +42,19 @@ function AppContent() {
   if (currentTab === 'landing') {
     return (
       <LandingPage 
+        onOpenLogin={() => {
+          setLoginInitialRegister(false);
+          setCurrentTab('login');
+        }}
+        onOpenRegister={() => {
+          setLoginInitialRegister(true);
+          setCurrentTab('login');
+        }}
         onLaunchConsole={() => {
           if (isAuthenticated) {
             setCurrentTab('dashboard');
           } else {
+            setLoginInitialRegister(false);
             setCurrentTab('login');
           }
         }} 

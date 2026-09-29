@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
-export function Login({ onLoginSuccess, onBackToLanding }) {
-  const [isRegister, setIsRegister] = useState(false);
+export function Login({ onLoginSuccess, onBackToLanding, initialRegister = false }) {
+  const [isRegister, setIsRegister] = useState(initialRegister);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
