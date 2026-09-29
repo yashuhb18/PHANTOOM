@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const AuthContext = createContext(null);
+
+const DEFAULT_GOOGLE_CLIENT_ID = '28860016867-m9ejbahc5ohf8q9jeulrfsd97c6u0hb8.apps.googleusercontent.com';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -11,6 +13,21 @@ export function AuthProvider({ children }) {
       return null;
     }
   });
+
+  const [googleClientId, setGoogleClientId] = useState(DEFAULT_GOOGLE_CLIENT_ID);
+  const tokenClientRef = useRef(null);
+
+  // Fetch Google Client ID from backend on mount
+  useEffect(() => {
+    fetch('/api/auth/google/client-id')
+      .then(res => res.json())
+      .then(data => {
+        if (data.client_id) {
+          setGoogleClientId(data.client_id);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const login = (identifier, password) => {
     const cleanId = (identifier || '').trim().toLowerCase();
@@ -57,19 +74,107 @@ export function AuthProvider({ children }) {
     };
   };
 
+  // Authenticate using Google ID Token (Credential)
+  const loginWithGoogleCredential = async (credential) => {
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
+        setUser(data.user);
+        localStorage.setItem('phantom_user', JSON.stringify(data.user));
+        return { success: true, user: data.user };
+      }
+      return { success: false, error: data.detail || 'Google authentication failed' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Authenticate using Google OAuth2 Access Token
+  const loginWithGoogleToken = async (accessToken) => {
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
+        setUser(data.user);
+        localStorage.setItem('phantom_user', JSON.stringify(data.user));
+        return { success: true, user: data.user };
+      }
+      return { success: false, error: data.detail || 'Google authentication failed' };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Interactive Google Sign-In popup
   const loginWithGoogle = () => {
-    // Simulated Google OAuth 2.0 Single Sign-On
-    const googleUser = {
-      username: 'yashz',
-      email: 'yash@phantom-sec.ai',
-      role: 'Enterprise SOC Hunter',
-      provider: 'google',
-      picture: 'https://lh3.googleusercontent.com/a/default-user',
-      token: `google-oauth2-${Date.now()}`
-    };
-    setUser(googleUser);
-    localStorage.setItem('phantom_user', JSON.stringify(googleUser));
-    return { success: true };
+    return new Promise((resolve) => {
+      // Check if Google GIS SDK is loaded
+      if (typeof window !== 'undefined' && window.google?.accounts?.oauth2) {
+        try {
+          const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: googleClientId,
+            scope: 'email profile openid',
+            callback: async (tokenResponse) => {
+              if (tokenResponse.error) {
+                resolve({ success: false, error: tokenResponse.error_description || tokenResponse.error });
+                return;
+              }
+              if (tokenResponse.access_token) {
+                const result = await loginWithGoogleToken(tokenResponse.access_token);
+                resolve(result);
+              } else {
+                resolve({ success: false, error: 'No access token received from Google.' });
+              }
+            },
+            error_callback: (err) => {
+              resolve({ success: false, error: err.message || 'Google Sign-In was cancelled or failed.' });
+            }
+          });
+          client.requestAccessToken({ prompt: 'select_account' });
+          return;
+        } catch (e) {
+          console.error('Google OAuth init error:', e);
+        }
+      }
+
+      // Check if Google ID library is initialized
+      if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: async (response) => {
+              if (response.credential) {
+                const res = await loginWithGoogleCredential(response.credential);
+                resolve(res);
+              }
+            }
+          });
+          window.google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              resolve({ success: false, error: 'Google Sign-In prompt unavailable. Check popup blockers.' });
+            }
+          });
+          return;
+        } catch (e) {
+          console.error('Google ID prompt error:', e);
+        }
+      }
+
+      // Fallback if Google SDK failed to load (offline or blocked)
+      resolve({
+        success: false,
+        error: 'Google Sign-In SDK is loading or blocked by your browser/adblocker. Please allow accounts.google.com.'
+      });
+    });
   };
 
   const register = ({ username, email, password, role = 'SOC Threat Hunter' }) => {
@@ -118,7 +223,17 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginWithGoogle, register, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      loginWithGoogle, 
+      loginWithGoogleCredential,
+      loginWithGoogleToken,
+      register, 
+      logout, 
+      googleClientId,
+      isAuthenticated: !!user 
+    }}>
       {children}
     </AuthContext.Provider>
   );

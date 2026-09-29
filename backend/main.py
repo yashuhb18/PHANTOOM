@@ -16,6 +16,7 @@ from backend.api.routes_simulate import router as simulate_router
 from backend.api.routes_scans import router as scans_router
 from backend.api.routes_ai import router as ai_router
 from backend.api.routes_siem import router as siem_router
+from backend.api.routes_auth import router as auth_router
 from backend.api.ws_routes import router as ws_router
 
 import asyncio
@@ -104,6 +105,7 @@ app.include_router(simulate_router)
 app.include_router(scans_router)
 app.include_router(ai_router)
 app.include_router(siem_router)
+app.include_router(auth_router)
 app.include_router(ws_router)
 
 @app.get("/health")
