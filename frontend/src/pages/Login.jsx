@@ -16,6 +16,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { PhantomWalkthrough } from '../components/common/PhantomWalkthrough';
 
 export function Login({ onLoginSuccess, onBackToLanding, initialRegister = false }) {
   const [isRegister, setIsRegister] = useState(initialRegister);
@@ -448,48 +449,12 @@ export function Login({ onLoginSuccess, onBackToLanding, initialRegister = false
       )}
 
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* HOW IT WORKS MODAL                                             */}
+      {/* HOW IT WORKS — INTERACTIVE SPEAKING PHANTOM COMPANION          */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {showHowItWorksModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-[#111113] border border-white/[0.1] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-white/[0.08] shrink-0">
-              <div className="flex items-center gap-2.5">
-                <Zap className="w-5 h-5 text-[#FDE047]" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  How PHANTOM Works — 4-Stage Defense
-                </h3>
-              </div>
-              <button onClick={() => setShowHowItWorksModal(false)} className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto py-5 space-y-3.5 text-xs leading-relaxed text-neutral-300 pr-1">
-              {[
-                { n: '1', title: 'Zero-Trust Hardware Bus Auditing', desc: 'The moment any USB device connects, PHANTOM inspects its VID, PID, and interface descriptors before the OS mounts executables. Devices masquerading as keyboards are isolated.' },
-                { n: '2', title: 'Synthetic Keystroke Velocity Interception', desc: 'BadUSB attacks inject keystrokes at hundreds of WPM. PHANTOM tracks cadence in real time — any burst exceeding 20 CPS triggers an immediate hardware cutoff.' },
-                { n: '3', title: 'Surgical Process Tree Annihilation', desc: 'If unauthorized scripts spawn (reverse shells, download cradles), the Autonomous Sentinel executes recursive SIGKILL in <45ms and dismounts the volume.' },
-                { n: '4', title: 'SIEM Threat Hunting & DeepSeek-R1 AI', desc: 'Events are ingested into the Threat Hunt Board. Analysts can execute SPL queries or chat with the DeepSeek-R1 cybersecurity model running on your local GPU.' },
-              ].map((stage) => (
-                <div key={stage.n} className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                  <div className="w-7 h-7 rounded-lg bg-[#FDE047]/10 border border-[#FDE047]/25 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
-                    {stage.n}
-                  </div>
-                  <div>
-                    <h4 className="text-white font-bold text-xs mb-0.5">{stage.title}</h4>
-                    <p className="text-neutral-400 text-[11px]">{stage.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="pt-4 border-t border-white/[0.08] flex items-center justify-end shrink-0">
-              <button onClick={() => setShowHowItWorksModal(false)} className="px-5 py-2 rounded-xl bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PhantomWalkthrough
+        isOpen={showHowItWorksModal}
+        onClose={() => setShowHowItWorksModal(false)}
+      />
 
     </div>
   );
