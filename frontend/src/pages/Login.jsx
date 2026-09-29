@@ -86,40 +86,34 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* LEFT HALF — BRANDING PANEL                                    */}
       {/* ══════════════════════════════════════════════════════════════ */}
-      <div className="hidden lg:flex w-1/2 bg-[#080808] relative overflow-hidden items-center justify-center">
-        {/* Ambient golden glow behind logo */}
-        <div className="absolute w-[400px] h-[400px] bg-[#FDE047]/[0.06] rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute w-[200px] h-[200px] bg-[#FDE047]/[0.04] rounded-full blur-[80px] pointer-events-none translate-y-20" />
+      <div className="hidden lg:flex w-1/2 bg-[#FDE047] relative overflow-hidden items-center justify-center">
+        {/* Subtle dark ambient shadow at edges */}
+        <div className="absolute -top-32 -left-32 w-[300px] h-[300px] bg-black/[0.05] rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-[300px] h-[300px] bg-black/[0.05] rounded-full blur-[100px] pointer-events-none" />
 
         {/* Subtle grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
-
-        {/* Border line on right edge */}
-        <div className="absolute right-0 top-0 bottom-0 w-px bg-white/[0.06]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
 
         {/* Branding Content */}
         <div className="relative z-10 text-center px-12">
           <img
-            src="/phantom-logo-yellow.png"
+            src="/phantom-logo.png"
             alt="PHANTOM"
-            className="h-28 w-auto object-contain mx-auto drop-shadow-[0_0_40px_rgba(253,224,71,0.3)]"
+            className="h-32 w-auto object-contain mx-auto drop-shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
           />
-          <h1 className="text-4xl xl:text-5xl font-extrabold tracking-tight text-[#FDE047] mt-8">
-            PHANTOM
-          </h1>
-          <p className="text-base text-neutral-500 mt-3 max-w-sm mx-auto leading-relaxed">
-            Autonomous USB Threat Defense
+          <p className="text-base text-black/60 mt-6 max-w-sm mx-auto leading-relaxed font-medium">
+            Autonomous USB Threat Defense Platform
           </p>
 
           {/* Three small feature tags */}
           <div className="flex items-center justify-center gap-3 mt-10">
-            <div className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-neutral-500 font-medium">
+            <div className="px-3 py-1.5 rounded-full bg-black/[0.06] border border-black/[0.1] text-[11px] text-black/60 font-semibold">
               Zero-Trust Bus Audit
             </div>
-            <div className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-neutral-500 font-medium">
+            <div className="px-3 py-1.5 rounded-full bg-black/[0.06] border border-black/[0.1] text-[11px] text-black/60 font-semibold">
               Sub-45ms Kill
             </div>
-            <div className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-neutral-500 font-medium">
+            <div className="px-3 py-1.5 rounded-full bg-black/[0.06] border border-black/[0.1] text-[11px] text-black/60 font-semibold">
               AI-Powered
             </div>
           </div>
@@ -129,7 +123,7 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
         {onBackToLanding && (
           <button
             onClick={onBackToLanding}
-            className="absolute bottom-8 left-8 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-white transition-all cursor-pointer"
+            className="absolute bottom-8 left-8 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-black/[0.08] hover:bg-black/[0.15] border border-black/[0.1] text-xs font-semibold text-black/60 hover:text-black transition-all cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back</span>
