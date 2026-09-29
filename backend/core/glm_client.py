@@ -202,16 +202,20 @@ class GLMClient:
                     "keep_alive": "60m",
                     "options": {
                         "temperature": 0.1,
-                        "num_ctx": 2048,
-                        "num_predict": 512,
+                        "num_ctx": 4096,
+                        "num_predict": 1024,
                         "num_thread": 8
                     }
                 }
                 response = await client.post(f"{self.host}/api/chat", json=payload)
                 if response.status_code == 200:
                     data = response.json()
-                    msg = data.get("message", {}).get("content", "").strip()
-                    return msg
+                    msg = data.get("message", {})
+                    content = msg.get("content", "").strip()
+                    thinking = msg.get("thinking", "").strip()
+                    if thinking:
+                        return f"<think>{thinking}</think>\n\n{content}"
+                    return content
                 else:
                     return f"AI Chat Error: HTTP {response.status_code}"
         except Exception as e:
@@ -221,6 +225,7 @@ class GLMClient:
     async def astream_chat(self, messages: List[Dict[str, str]], temperature: float = 0.1):
         """
         Asynchronous streaming chat yielding tokens in real-time as they are produced.
+        Captures DeepSeek-R1 reasoning tokens (<think>...</think>) and streams them live.
         Optimized with full RTX 3050 GPU VRAM residence (45+ tokens/second).
         """
         if not self.enabled:
@@ -234,28 +239,42 @@ class GLMClient:
             "keep_alive": "60m",
             "options": {
                 "temperature": 0.1,
-                "num_ctx": 2048,
-                "num_predict": 512,
+                "num_ctx": 4096,
+                "num_predict": 1024,
                 "num_thread": 8
             }
         }
 
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=10.0, read=60.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=10.0, read=90.0)) as client:
                 async with client.stream("POST", f"{self.host}/api/chat", json=payload) as response:
                     if response.status_code != 200:
                         yield f"Error from AI engine: HTTP {response.status_code}"
                         return
+                    in_thinking = False
                     async for line in response.aiter_lines():
                         if not line:
                             continue
                         try:
                             chunk = json.loads(line)
-                            content = chunk.get("message", {}).get("content", "")
-                            if content:
+                            msg = chunk.get("message", {})
+                            thinking = msg.get("thinking", "")
+                            content = msg.get("content", "")
+
+                            if thinking:
+                                if not in_thinking:
+                                    in_thinking = True
+                                    yield "<think>"
+                                yield thinking
+                            elif content:
+                                if in_thinking:
+                                    in_thinking = False
+                                    yield "</think>\n\n"
                                 yield content
                         except Exception:
                             pass
+                    if in_thinking:
+                        yield "</think>\n\n"
         except Exception as e:
             logger.warning(f"Streaming chat error: {e}")
             yield f"⚠️ Stream interrupted: {e}"

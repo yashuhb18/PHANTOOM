@@ -8,8 +8,82 @@ import {
   Terminal, 
   ShieldAlert, 
   RefreshCw, 
-  Code
+  Code,
+  Brain,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
+
+function parseThinkingAndAnswer(rawText) {
+  if (!rawText) return { thinking: null, answer: '', isThinking: false };
+
+  const thinkStart = rawText.indexOf('<think>');
+  if (thinkStart === -1) {
+    return { thinking: null, answer: rawText, isThinking: false };
+  }
+
+  const thinkEnd = rawText.indexOf('</think>');
+  if (thinkEnd === -1) {
+    // Currently still generating the thinking process
+    const thinking = rawText.slice(thinkStart + 7);
+    return { thinking, answer: '', isThinking: true };
+  }
+
+  // Thinking completed
+  const thinking = rawText.slice(thinkStart + 7, thinkEnd).trim();
+  const answer = rawText.slice(thinkEnd + 8).trim();
+  return { thinking, answer, isThinking: false };
+}
+
+function ThinkingAccordion({ thinking, isThinking }) {
+  const [expanded, setExpanded] = useState(isThinking);
+
+  useEffect(() => {
+    if (isThinking) {
+      setExpanded(true);
+    }
+  }, [isThinking]);
+
+  if (!thinking) return null;
+
+  const wordCount = thinking.trim().split(/\s+/).filter(Boolean).length;
+
+  return (
+    <div className="mb-2.5 rounded-xl border border-white/[0.08] bg-black/40 overflow-hidden text-xs">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-3 py-1.5 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.05] transition-colors cursor-pointer text-left select-none"
+      >
+        <div className="flex items-center gap-2">
+          <Brain className={`w-3.5 h-3.5 ${isThinking ? 'text-[#FDE047] animate-pulse' : 'text-neutral-400'}`} />
+          {isThinking ? (
+            <span className="text-[#FDE047] font-mono text-[11px] font-semibold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FDE047] animate-ping" />
+              DeepSeek Reasoning...
+            </span>
+          ) : (
+            <span className="text-neutral-400 hover:text-white font-mono text-[11px] font-medium transition-colors">
+              Thought Process ({wordCount} words)
+            </span>
+          )}
+        </div>
+        <div className="text-neutral-500 hover:text-white">
+          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="p-3 bg-black/60 border-t border-white/[0.06] text-neutral-400 font-mono text-[11px] leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap select-text">
+          {thinking}
+          {isThinking && (
+            <span className="inline-block w-1.5 h-3.5 bg-[#FDE047] animate-pulse ml-1 align-middle" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'deobfuscate'
@@ -249,28 +323,40 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                       m.role === 'user' ? (
                         m.content
                       ) : (
-                        <div className="space-y-2 markdown-chat-content text-xs">
-                          <ReactMarkdown
-                            components={{
-                              p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-neutral-200 text-xs font-normal">{children}</p>,
-                              strong: ({ children }) => <strong className="font-bold text-[#FDE047]">{children}</strong>,
-                              ul: ({ children }) => <ul className="space-y-1.5 my-2 pl-4 list-disc marker:text-[#FDE047] text-neutral-300">{children}</ul>,
-                              ol: ({ children }) => <ol className="space-y-1.5 my-2 pl-4 list-decimal marker:text-[#FDE047] text-neutral-300 font-medium">{children}</ol>,
-                              li: ({ children }) => <li className="text-neutral-300 leading-relaxed text-xs">{children}</li>,
-                              code: ({ inline, children }) =>
-                                inline ? (
-                                  <code className="px-1.5 py-0.5 rounded bg-black/60 text-[#FDE047] font-mono text-[11px] border border-white/10">{children}</code>
-                                ) : (
-                                  <pre className="p-3 my-2 rounded-xl bg-black border border-white/10 overflow-x-auto text-[11px] font-mono text-emerald-400 leading-snug">{children}</pre>
-                                ),
-                              h1: ({ children }) => <h3 className="font-bold text-white text-sm mt-3 mb-1 text-[#FDE047]">{children}</h3>,
-                              h2: ({ children }) => <h4 className="font-bold text-white text-xs sm:text-sm mt-2.5 mb-1 text-[#FDE047]">{children}</h4>,
-                              h3: ({ children }) => <h5 className="font-bold text-white text-xs mt-2 mb-1 text-[#FDE047]">{children}</h5>,
-                            }}
-                          >
-                            {m.content}
-                          </ReactMarkdown>
-                        </div>
+                        (() => {
+                          const { thinking, answer, isThinking } = parseThinkingAndAnswer(m.content);
+                          return (
+                            <div className="space-y-2 markdown-chat-content text-xs">
+                              {thinking && (
+                                <ThinkingAccordion thinking={thinking} isThinking={isThinking} />
+                              )}
+                              {answer ? (
+                                <ReactMarkdown
+                                  components={{
+                                    p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-neutral-200 text-xs font-normal">{children}</p>,
+                                    strong: ({ children }) => <strong className="font-bold text-[#FDE047]">{children}</strong>,
+                                    ul: ({ children }) => <ul className="space-y-1.5 my-2 pl-4 list-disc marker:text-[#FDE047] text-neutral-300">{children}</ul>,
+                                    ol: ({ children }) => <ol className="space-y-1.5 my-2 pl-4 list-decimal marker:text-[#FDE047] text-neutral-300 font-medium">{children}</ol>,
+                                    li: ({ children }) => <li className="text-neutral-300 leading-relaxed text-xs">{children}</li>,
+                                    code: ({ inline, children }) =>
+                                      inline ? (
+                                        <code className="px-1.5 py-0.5 rounded bg-black/60 text-[#FDE047] font-mono text-[11px] border border-white/10">{children}</code>
+                                      ) : (
+                                        <pre className="p-3 my-2 rounded-xl bg-black border border-white/10 overflow-x-auto text-[11px] font-mono text-emerald-400 leading-snug">{children}</pre>
+                                      ),
+                                    h1: ({ children }) => <h3 className="font-bold text-white text-sm mt-3 mb-1 text-[#FDE047]">{children}</h3>,
+                                    h2: ({ children }) => <h4 className="font-bold text-white text-xs sm:text-sm mt-2.5 mb-1 text-[#FDE047]">{children}</h4>,
+                                    h3: ({ children }) => <h5 className="font-bold text-white text-xs mt-2 mb-1 text-[#FDE047]">{children}</h5>,
+                                  }}
+                                >
+                                  {answer}
+                                </ReactMarkdown>
+                              ) : isThinking ? null : (
+                                <ReactMarkdown>{m.content}</ReactMarkdown>
+                              )}
+                            </div>
+                          );
+                        })()
                       )
                     ) : (
                       <div className="flex items-center gap-2 text-neutral-400 italic">
