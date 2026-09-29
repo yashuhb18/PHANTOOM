@@ -5,7 +5,7 @@ import { LiveTicker } from '../components/dashboard/LiveTicker';
 import { SimulateButton } from '../components/common/SimulateButton';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../hooks/useAuth';
-import { Zap, ArrowRight, Clock, MapPin, HardDrive, LogOut, AlertTriangle, CheckCircle2, Trash2, RefreshCw, Camera } from 'lucide-react';
+import { Zap, ArrowRight, Clock, MapPin, HardDrive, LogOut, AlertTriangle, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
 import { safeJson } from '../utils/api';
 
 export function Dashboard({ setTab, setSelectedSessionId }) {
@@ -312,23 +312,13 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <button
-            onClick={() => setTab('scanner')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold bg-white/[0.05] hover:bg-white/[0.1] text-white border border-white/[0.1] transition-all cursor-pointer pill-button shadow-sm"
-            title="Pre-plug AI photo triage of physical USB"
-          >
-            <Camera className="w-3.5 h-3.5 text-[#FDE047]" />
-            <span>Scan USB Photo</span>
-          </button>
-          <button
-            onClick={() => setTab('ports')}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold bg-[#FDE047] hover:bg-[#FACC15] text-black transition-all cursor-pointer pill-button shadow-lg shadow-[#FDE047]/10"
-          >
-            <span>View Port Topology</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <button
+          onClick={() => setTab('ports')}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold bg-[#FDE047] hover:bg-[#FACC15] text-black transition-all cursor-pointer pill-button shadow-lg shadow-[#FDE047]/10 shrink-0"
+        >
+          <span>View Port Topology</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Toast Notification for Eject/System actions */}
