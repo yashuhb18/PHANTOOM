@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Lock, 
   User, 
@@ -12,99 +12,11 @@ import {
   FileText, 
   X, 
   Zap, 
-  Radio, 
   ShieldAlert,
-  Terminal,
-  Cpu,
-  CheckCircle2,
-  Shield,
-  Fingerprint,
-  Scan
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
-/* ─── Floating Particle Canvas ────────────────────────────────────── */
-function ParticleField() {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let animId;
-    let particles = [];
-
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    // Create particles
-    for (let i = 0; i < 60; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        r: Math.random() * 1.5 + 0.5,
-        opacity: Math.random() * 0.4 + 0.1,
-      });
-    }
-
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Draw connections
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(253, 224, 71, ${0.06 * (1 - dist / 120)})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          }
-        }
-      }
-
-      // Draw and move particles
-      particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(253, 224, 71, ${p.opacity})`;
-        ctx.fill();
-      });
-
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 pointer-events-none z-0"
-    />
-  );
-}
-
-/* ─── Main Login Component ────────────────────────────────────────── */
 export function Login({ onLoginSuccess, onBackToLanding }) {
   const [isRegister, setIsRegister] = useState(false);
   const [identifier, setIdentifier] = useState('');
@@ -122,38 +34,19 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
 
   const { login, loginWithGoogle, register } = useAuth();
 
-  // Live clock
-  const [clock, setClock] = useState('');
-  useEffect(() => {
-    const tick = () => {
-      setClock(new Date().toLocaleTimeString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      }));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
-
     if (!identifier.trim() || !password.trim()) {
       setError('Please enter your username/email and password.');
       return;
     }
-
     const res = login(identifier, password);
     if (res.success) {
       if (onLoginSuccess) onLoginSuccess();
     } else {
-      setError(res.error || 'Authentication failed. Please verify credentials.');
+      setError(res.error || 'Authentication failed.');
     }
   };
 
@@ -161,19 +54,15 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
-
     const res = register({
       username: regUsername,
       email: regEmail,
       password: regPassword,
       role: 'Analyst'
     });
-
     if (res.success) {
-      setSuccessMsg('Account created successfully! Entering console...');
-      setTimeout(() => {
-        if (onLoginSuccess) onLoginSuccess();
-      }, 700);
+      setSuccessMsg('Account created! Entering console...');
+      setTimeout(() => { if (onLoginSuccess) onLoginSuccess(); }, 700);
     } else {
       setError(res.error || 'Registration failed.');
     }
@@ -182,9 +71,7 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
   const handleGoogleSignIn = () => {
     setError('');
     const res = loginWithGoogle();
-    if (res.success) {
-      if (onLoginSuccess) onLoginSuccess();
-    }
+    if (res.success && onLoginSuccess) onLoginSuccess();
   };
 
   const quickFillAdmin = () => {
@@ -194,95 +81,132 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#060608] text-white font-sans selection:bg-[#FDE047] selection:text-black relative">
+    <div className="h-screen w-screen overflow-hidden flex flex-col lg:flex-row bg-[#0A0A0A] text-white font-sans selection:bg-[#FDE047] selection:text-black">
 
-      {/* ─── Background Layers ────────────────────────────────────── */}
-      <ParticleField />
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* LEFT HALF — BRANDING PANEL                                    */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="hidden lg:flex w-1/2 bg-[#080808] relative overflow-hidden items-center justify-center">
+        {/* Ambient golden glow behind logo */}
+        <div className="absolute w-[400px] h-[400px] bg-[#FDE047]/[0.06] rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute w-[200px] h-[200px] bg-[#FDE047]/[0.04] rounded-full blur-[80px] pointer-events-none translate-y-20" />
 
-      {/* Large radial blurs */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#FDE047]/[0.04] rounded-full blur-[180px] pointer-events-none" />
-      <div className="absolute bottom-[-15%] right-[-5%] w-[500px] h-[500px] bg-[#FDE047]/[0.03] rounded-full blur-[160px] pointer-events-none" />
+        {/* Subtle grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
 
-      {/* Subtle grid overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:48px_48px] pointer-events-none z-0" />
+        {/* Border line on right edge */}
+        <div className="absolute right-0 top-0 bottom-0 w-px bg-white/[0.06]" />
 
-      {/* ─── Top Bar ──────────────────────────────────────────────── */}
-      <header className="absolute top-0 left-0 right-0 z-20 px-6 sm:px-10 py-5 flex items-center justify-between">
-        {/* Left: Back + Logo */}
-        <div className="flex items-center gap-4">
-          {onBackToLanding && (
-            <button
-              onClick={onBackToLanding}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-white transition-all cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back</span>
-            </button>
-          )}
+        {/* Branding Content */}
+        <div className="relative z-10 text-center px-12">
           <img
             src="/phantom-logo-yellow.png"
             alt="PHANTOM"
-            className="h-7 w-auto object-contain drop-shadow-[0_0_20px_rgba(253,224,71,0.25)]"
+            className="h-28 w-auto object-contain mx-auto drop-shadow-[0_0_40px_rgba(253,224,71,0.3)]"
           />
-        </div>
+          <h1 className="text-4xl xl:text-5xl font-extrabold tracking-tight text-[#FDE047] mt-8">
+            PHANTOM
+          </h1>
+          <p className="text-base text-neutral-500 mt-3 max-w-sm mx-auto leading-relaxed">
+            Autonomous USB Threat Defense
+          </p>
 
-        {/* Right: How It Works + Rules + Clock */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowHowItWorksModal(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-[#FDE047] transition-all cursor-pointer"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-[#FDE047]/70" />
-            <span>How It Works</span>
-          </button>
-
-          <button
-            onClick={() => setShowRulesModal(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-white transition-all cursor-pointer"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Rules</span>
-          </button>
-
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[11px] font-mono text-neutral-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>{clock} IST</span>
-          </div>
-        </div>
-      </header>
-
-      {/* ─── Centered Card ────────────────────────────────────────── */}
-      <div className="relative z-10 h-full flex items-center justify-center px-4">
-        <div className="w-full max-w-[420px]">
-
-          {/* Logo + Tagline (above card) */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#FDE047]/[0.08] border border-[#FDE047]/20 mb-5 shadow-[0_0_40px_rgba(253,224,71,0.08)]">
-              <Shield className="w-8 h-8 text-[#FDE047]" />
+          {/* Three small feature tags */}
+          <div className="flex items-center justify-center gap-3 mt-10">
+            <div className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-neutral-500 font-medium">
+              Zero-Trust Bus Audit
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-              Welcome to <span className="text-[#FDE047]">PHANTOM</span>
-            </h1>
-            <p className="text-sm text-neutral-500 mt-1.5">
-              Autonomous USB Threat Defense Platform
-            </p>
+            <div className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-neutral-500 font-medium">
+              Sub-45ms Kill
+            </div>
+            <div className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-neutral-500 font-medium">
+              AI-Powered
+            </div>
+          </div>
+        </div>
+
+        {/* Back to landing button — bottom-left */}
+        {onBackToLanding && (
+          <button
+            onClick={onBackToLanding}
+            className="absolute bottom-8 left-8 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-white transition-all cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back</span>
+          </button>
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* RIGHT HALF — AUTH FORM                                        */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="w-full lg:w-1/2 h-full flex flex-col bg-[#0E0E10] relative overflow-y-auto">
+
+        {/* Top bar — How It Works + Rules */}
+        <header className="flex items-center justify-between px-6 sm:px-10 py-5 shrink-0">
+          {/* Mobile: Back + Logo */}
+          <div className="flex items-center gap-3 lg:hidden">
+            {onBackToLanding && (
+              <button
+                onClick={onBackToLanding}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs text-neutral-400 hover:text-white transition-all cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <img
+              src="/phantom-logo-yellow.png"
+              alt="PHANTOM"
+              className="h-6 w-auto object-contain drop-shadow-[0_0_12px_rgba(253,224,71,0.2)]"
+            />
           </div>
 
-          {/* Glass Card */}
-          <div className="bg-[#0E0E11]/80 backdrop-blur-2xl border border-white/[0.08] rounded-[24px] p-6 sm:p-8 shadow-[0_8px_60px_rgba(0,0,0,0.5)]">
+          {/* Desktop: empty left */}
+          <div className="hidden lg:block" />
 
-            {/* Mode Tabs */}
-            <div className="flex items-center p-1 bg-[#141416] rounded-full border border-white/[0.08] mb-6">
+          {/* Right: info buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowHowItWorksModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-[#FDE047] transition-all cursor-pointer"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-[#FDE047]/60" />
+              <span className="hidden sm:inline">How It Works</span>
+            </button>
+            <button
+              onClick={() => setShowRulesModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-neutral-400 hover:text-white transition-all cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Rules</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Centered form area */}
+        <div className="flex-1 flex items-center justify-center px-6 sm:px-10 pb-8">
+          <div className="w-full max-w-[380px]">
+
+            {/* Heading */}
+            <div className="mb-8">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                {isRegister ? 'Create your account' : 'Welcome back'}
+              </h2>
+              <p className="text-sm text-neutral-500 mt-2">
+                {isRegister
+                  ? 'Set up your credentials to access the platform.'
+                  : 'Sign in to access your threat defense console.'}
+              </p>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex items-center p-1 bg-[#141416] rounded-full border border-white/[0.08] mb-7">
               <button
                 type="button"
-                onClick={() => {
-                  setIsRegister(false);
-                  setError('');
-                  setSuccessMsg('');
-                }}
+                onClick={() => { setIsRegister(false); setError(''); setSuccessMsg(''); }}
                 className={`flex-1 py-2 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${
                   !isRegister
-                    ? 'bg-[#FDE047] text-black shadow-md shadow-amber-500/20'
+                    ? 'bg-[#FDE047] text-black shadow-md shadow-[#FDE047]/15'
                     : 'text-neutral-400 hover:text-white'
                 }`}
               >
@@ -290,14 +214,10 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsRegister(true);
-                  setError('');
-                  setSuccessMsg('');
-                }}
+                onClick={() => { setIsRegister(true); setError(''); setSuccessMsg(''); }}
                 className={`flex-1 py-2 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${
                   isRegister
-                    ? 'bg-[#FDE047] text-black shadow-md shadow-amber-500/20'
+                    ? 'bg-[#FDE047] text-black shadow-md shadow-[#FDE047]/15'
                     : 'text-neutral-400 hover:text-white'
                 }`}
               >
@@ -305,25 +225,25 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
               </button>
             </div>
 
-            {/* Error & Success Messages */}
+            {/* Alerts */}
             {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/25 text-red-300 text-xs rounded-xl flex items-center gap-2.5 animate-fadeIn">
+              <div className="mb-5 p-3 bg-red-500/10 border border-red-500/25 text-red-300 text-xs rounded-xl flex items-center gap-2.5">
                 <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-                <span className="leading-snug">{error}</span>
+                <span>{error}</span>
               </div>
             )}
             {successMsg && (
-              <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs rounded-xl flex items-center gap-2.5 animate-fadeIn">
+              <div className="mb-5 p-3 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs rounded-xl flex items-center gap-2.5">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
                 <span>{successMsg}</span>
               </div>
             )}
 
-            {/* Google SSO Button */}
+            {/* Google SSO */}
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              className="w-full py-3 px-4 rounded-2xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.1] hover:border-white/[0.2] text-sm font-medium text-white transition-all cursor-pointer flex items-center justify-center gap-3 mb-5 group"
+              className="w-full py-3 px-4 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.2] text-sm font-medium text-white transition-all cursor-pointer flex items-center justify-center gap-3 mb-6"
             >
               <svg className="w-[18px] h-[18px] shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
@@ -335,19 +255,17 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
             </button>
 
             {/* Divider */}
-            <div className="relative flex items-center justify-center mb-5">
+            <div className="relative flex items-center justify-center mb-6">
               <div className="border-t border-white/[0.06] w-full" />
-              <span className="bg-[#0E0E11] px-3 text-[10px] font-mono uppercase text-neutral-600 tracking-wider shrink-0">
-                or
-              </span>
+              <span className="bg-[#0E0E10] px-4 text-[11px] text-neutral-600 shrink-0">or</span>
               <div className="border-t border-white/[0.06] w-full" />
             </div>
 
-            {/* ─── Sign In Form ─────────────────────────────────── */}
+            {/* ── Sign In Form ────────────────────────────────── */}
             {!isRegister ? (
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <form onSubmit={handleLoginSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-400 mb-1.5 ml-1">
+                  <label className="block text-xs font-medium text-neutral-400 mb-2">
                     Username or Email
                   </label>
                   <div className="relative">
@@ -356,7 +274,7 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                       type="text"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/50 focus:ring-1 focus:ring-[#FDE047]/20 transition-all"
                       placeholder="Enter your username or email"
                       required
                     />
@@ -364,16 +282,14 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5 ml-1">
-                    <label className="text-[11px] font-medium text-neutral-400">
-                      Password
-                    </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium text-neutral-400">Password</label>
                     <button
                       type="button"
                       onClick={quickFillAdmin}
-                      className="text-[10px] font-medium text-[#FDE047]/70 hover:text-[#FDE047] hover:underline cursor-pointer transition-colors"
+                      className="text-[11px] text-[#FDE047]/60 hover:text-[#FDE047] cursor-pointer transition-colors"
                     >
-                      Use demo credentials
+                      Demo credentials
                     </button>
                   </div>
                   <div className="relative">
@@ -382,7 +298,7 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-11 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      className="w-full pl-10 pr-11 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/50 focus:ring-1 focus:ring-[#FDE047]/20 transition-all"
                       placeholder="••••••••••"
                       required
                     />
@@ -396,30 +312,26 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                   </div>
                 </div>
 
-                <div className="pt-1">
-                  <button
-                    type="submit"
-                    className="w-full py-3 px-4 rounded-xl bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-sm tracking-wide transition-all duration-200 cursor-pointer shadow-lg shadow-amber-500/15 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
-                  >
-                    <span>Sign In</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-sm tracking-wide transition-all duration-200 cursor-pointer shadow-lg shadow-[#FDE047]/10 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  Sign In
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </form>
             ) : (
-              /* ─── Registration Form ───────────────────────────── */
-              <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+              /* ── Registration Form ──────────────────────────── */
+              <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-400 mb-1.5 ml-1">
-                    Username
-                  </label>
+                  <label className="block text-xs font-medium text-neutral-400 mb-2">Username</label>
                   <div className="relative">
                     <User className="w-4 h-4 text-neutral-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={regUsername}
                       onChange={(e) => setRegUsername(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/50 focus:ring-1 focus:ring-[#FDE047]/20 transition-all"
                       placeholder="Pick a username"
                       required
                     />
@@ -427,16 +339,14 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-400 mb-1.5 ml-1">
-                    Email Address
-                  </label>
+                  <label className="block text-xs font-medium text-neutral-400 mb-2">Email Address</label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-neutral-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="email"
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      className="w-full pl-10 pr-4 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/50 focus:ring-1 focus:ring-[#FDE047]/20 transition-all"
                       placeholder="your@email.com"
                       required
                     />
@@ -444,16 +354,14 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-medium text-neutral-400 mb-1.5 ml-1">
-                    Password
-                  </label>
+                  <label className="block text-xs font-medium text-neutral-400 mb-2">Password</label>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-neutral-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
-                      className="w-full pl-10 pr-11 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/60 focus:ring-1 focus:ring-[#FDE047]/30 transition-all"
+                      className="w-full pl-10 pr-11 py-3 bg-[#141416] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-[#FDE047]/50 focus:ring-1 focus:ring-[#FDE047]/20 transition-all"
                       placeholder="Min 6 characters"
                       required
                     />
@@ -467,133 +375,70 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                   </div>
                 </div>
 
-                <div className="pt-1">
-                  <button
-                    type="submit"
-                    className="w-full py-3 px-4 rounded-xl bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-sm tracking-wide transition-all duration-200 cursor-pointer shadow-lg shadow-amber-500/15 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
-                  >
-                    <span>Create Account</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-sm tracking-wide transition-all duration-200 cursor-pointer shadow-lg shadow-[#FDE047]/10 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
+                >
+                  Create Account
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </form>
             )}
-          </div>
-
-          {/* Bottom links (mobile) */}
-          <div className="sm:hidden flex items-center justify-center gap-4 mt-5">
-            <button
-              onClick={() => setShowHowItWorksModal(true)}
-              className="text-[11px] text-neutral-500 hover:text-[#FDE047] transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <HelpCircle className="w-3 h-3" /> How It Works
-            </button>
-            <button
-              onClick={() => setShowRulesModal(true)}
-              className="text-[11px] text-neutral-500 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <FileText className="w-3 h-3" /> Rules
-            </button>
-          </div>
-
-          {/* Three Feature Pills */}
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[10px] text-neutral-500">
-              <Zap className="w-3 h-3 text-[#FDE047]/50" />
-              <span>Sub-45ms Kill</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[10px] text-neutral-500">
-              <Scan className="w-3 h-3 text-[#FDE047]/50" />
-              <span>Zero-Trust Bus</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[10px] text-neutral-500">
-              <Cpu className="w-3 h-3 text-[#FDE047]/50" />
-              <span>DeepSeek-R1 AI</span>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* RULES & REGULATIONS MODAL                                  */}
-      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* RULES MODAL                                                    */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
       {showRulesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-[#111113] border border-white/[0.1] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#111113] border border-white/[0.1] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08] shrink-0">
               <div className="flex items-center gap-2.5">
                 <ShieldAlert className="w-5 h-5 text-[#FDE047]" />
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Rules of Engagement & Platform Regulations
+                  Rules & Platform Regulations
                 </h3>
               </div>
-              <button
-                onClick={() => setShowRulesModal(false)}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              >
+              <button onClick={() => setShowRulesModal(false)} className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto py-5 space-y-4 font-mono text-xs leading-relaxed text-neutral-300 pr-1">
+            <div className="flex-1 overflow-y-auto py-5 space-y-4 text-xs leading-relaxed text-neutral-300 pr-1">
               <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                <h4 className="text-[#FDE047] font-bold mb-1">
-                  1. Autonomous Kernel Interception & Containment
-                </h4>
-                <p className="text-neutral-400 text-[11px]">
-                  PHANTOM operates in active autonomous mode. It continuously audits physical USB insertions, hardware descriptors, and process execution trees. Detected rogue payloads will be surgically neutralized via <code className="text-white">SIGKILL</code> with zero human latency.
-                </p>
+                <h4 className="text-[#FDE047] font-bold mb-1">1. Autonomous Kernel Interception & Containment</h4>
+                <p className="text-neutral-400 text-[11px]">PHANTOM operates in active autonomous mode. It continuously audits physical USB insertions, hardware descriptors, and process execution trees. Detected rogue payloads will be surgically neutralized via <code className="text-white">SIGKILL</code> with zero human latency.</p>
               </div>
-
               <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                <h4 className="text-[#FDE047] font-bold mb-1">
-                  2. Synthetic Keystroke Velocity Enforcement
-                </h4>
-                <p className="text-neutral-400 text-[11px]">
-                  Typing cadence exceeding human biological thresholds (20 characters/sec or ~1000 CPM) is classified as synthetic DuckyScript / BadUSB automation. The endpoint keyboard buffer will be instantly micro-isolated to prevent payload completion.
-                </p>
+                <h4 className="text-[#FDE047] font-bold mb-1">2. Synthetic Keystroke Velocity Enforcement</h4>
+                <p className="text-neutral-400 text-[11px]">Typing cadence exceeding human biological thresholds (20 characters/sec or ~1000 CPM) is classified as synthetic DuckyScript / BadUSB automation. The endpoint keyboard buffer will be instantly micro-isolated.</p>
               </div>
-
               <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                <h4 className="text-[#FDE047] font-bold mb-1">
-                  3. Canary Deception Grid Compliance
-                </h4>
-                <p className="text-neutral-400 text-[11px]">
-                  Decoy credential files (<code className="text-white">passwords.xlsx</code>, <code className="text-white">.aws_creds_canary</code>) are dynamically seeded inside temporary decoy mounts. Any unprompted read or write access trips high-priority MITRE T1083 honeypot alerts and severs associated socket connections.
-                </p>
+                <h4 className="text-[#FDE047] font-bold mb-1">3. Canary Deception Grid Compliance</h4>
+                <p className="text-neutral-400 text-[11px]">Decoy credential files are dynamically seeded inside temporary decoy mounts. Any unprompted access trips high-priority MITRE T1083 honeypot alerts.</p>
               </div>
-
               <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                <h4 className="text-[#FDE047] font-bold mb-1">
-                  4. Multi-Tenant Confidentiality
-                </h4>
-                <p className="text-neutral-400 text-[11px]">
-                  All behavioral DNA token hashes, incident reports, and SIEM logs remain strictly localized within your cluster database. Zero telemetry is forwarded to external public cloud endpoints.
-                </p>
+                <h4 className="text-[#FDE047] font-bold mb-1">4. Multi-Tenant Confidentiality</h4>
+                <p className="text-neutral-400 text-[11px]">All behavioral DNA token hashes, incident reports, and SIEM logs remain strictly localized within your cluster database. Zero telemetry is forwarded to external endpoints.</p>
               </div>
             </div>
-
             <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between shrink-0">
-              <span className="text-[10px] font-mono text-neutral-500">
-                Compliance: NIST SP 800-86 / MITRE ATT&CK
-              </span>
-              <button
-                onClick={() => setShowRulesModal(false)}
-                className="px-5 py-2 rounded-xl bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer"
-              >
-                I Understand & Accept
+              <span className="text-[10px] font-mono text-neutral-500">NIST SP 800-86 / MITRE ATT&CK</span>
+              <button onClick={() => setShowRulesModal(false)} className="px-5 py-2 rounded-xl bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer">
+                I Understand
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* HOW IT WORKS MODAL                                         */}
-      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* HOW IT WORKS MODAL                                             */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
       {showHowItWorksModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="bg-[#111113] border border-white/[0.1] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#111113] border border-white/[0.1] rounded-[24px] max-w-2xl w-full p-6 sm:p-8 shadow-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-white/[0.08] shrink-0">
               <div className="flex items-center gap-2.5">
                 <Zap className="w-5 h-5 text-[#FDE047]" />
@@ -601,77 +446,30 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                   How PHANTOM Works — 4-Stage Defense
                 </h3>
               </div>
-              <button
-                onClick={() => setShowHowItWorksModal(false)}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              >
+              <button onClick={() => setShowHowItWorksModal(false)} className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto py-5 space-y-3.5 font-mono text-xs leading-relaxed text-neutral-300 pr-1">
-              <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
-                  1
+            <div className="flex-1 overflow-y-auto py-5 space-y-3.5 text-xs leading-relaxed text-neutral-300 pr-1">
+              {[
+                { n: '1', title: 'Zero-Trust Hardware Bus Auditing', desc: 'The moment any USB device connects, PHANTOM inspects its VID, PID, and interface descriptors before the OS mounts executables. Devices masquerading as keyboards are isolated.' },
+                { n: '2', title: 'Synthetic Keystroke Velocity Interception', desc: 'BadUSB attacks inject keystrokes at hundreds of WPM. PHANTOM tracks cadence in real time — any burst exceeding 20 CPS triggers an immediate hardware cutoff.' },
+                { n: '3', title: 'Surgical Process Tree Annihilation', desc: 'If unauthorized scripts spawn (reverse shells, download cradles), the Autonomous Sentinel executes recursive SIGKILL in <45ms and dismounts the volume.' },
+                { n: '4', title: 'SIEM Threat Hunting & DeepSeek-R1 AI', desc: 'Events are ingested into the Threat Hunt Board. Analysts can execute SPL queries or chat with the DeepSeek-R1 cybersecurity model running on your local GPU.' },
+              ].map((stage) => (
+                <div key={stage.n} className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
+                  <div className="w-7 h-7 rounded-lg bg-[#FDE047]/10 border border-[#FDE047]/25 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
+                    {stage.n}
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold text-xs mb-0.5">{stage.title}</h4>
+                    <p className="text-neutral-400 text-[11px]">{stage.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-white font-bold text-xs mb-0.5">
-                    Zero-Trust Hardware Bus Auditing
-                  </h4>
-                  <p className="text-neutral-400 text-[11px]">
-                    The moment any USB device connects to the hardware bus, PHANTOM inspects its Vendor ID (VID), Product ID (PID), and interface descriptors before the operating system mounts executables. Devices masquerading as keyboards are isolated.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
-                  2
-                </div>
-                <div>
-                  <h4 className="text-white font-bold text-xs mb-0.5">
-                    Synthetic Keystroke Velocity Interception
-                  </h4>
-                  <p className="text-neutral-400 text-[11px]">
-                    Hardware attacks like RubberDucky and BadUSB inject pre-programmed keystrokes at hundreds of words per minute. PHANTOM tracks cadence in real time: any burst exceeding 20 CPS triggers an immediate hardware cutoff.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
-                  3
-                </div>
-                <div>
-                  <h4 className="text-white font-bold text-xs mb-0.5">
-                    Surgical Process Tree Annihilation
-                  </h4>
-                  <p className="text-neutral-400 text-[11px]">
-                    If unauthorized scripts attempt to spawn (e.g. reverse shells, PowerShell download cradles, or autorun exploits), the Autonomous Sentinel executes recursive <code className="text-red-400">SIGKILL</code> in &lt;45 milliseconds and dismounts the storage volume.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-black/40 border border-white/[0.06]">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 text-[#FDE047] flex items-center justify-center shrink-0 font-bold text-xs">
-                  4
-                </div>
-                <div>
-                  <h4 className="text-white font-bold text-xs mb-0.5">
-                    SIEM Threat Hunting & DeepSeek-R1 AI Co-Pilot
-                  </h4>
-                  <p className="text-neutral-400 text-[11px]">
-                    Events are ingested into the Splunk-style Threat Hunt Board. Analysts can execute SPL queries or chat peer-to-peer with the fine-tuned DeepSeek-R1 cybersecurity model running directly on your local GPU.
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
-
             <div className="pt-4 border-t border-white/[0.08] flex items-center justify-end shrink-0">
-              <button
-                onClick={() => setShowHowItWorksModal(false)}
-                className="px-5 py-2 rounded-xl bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer"
-              >
+              <button onClick={() => setShowHowItWorksModal(false)} className="px-5 py-2 rounded-xl bg-[#FDE047] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#FACC15] transition-all cursor-pointer">
                 Close
               </button>
             </div>
