@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { SecOpsCopilotDrawer } from '../ai/SecOpsCopilotDrawer';
-import { PhantomFloatingLogo } from '../ai/PhantomFloatingLogo';
+import { PhantomCornerBuddy } from '../common/PhantomCornerBuddy';
 
 export function Layout({ children, currentTab, setTab }) {
   const [copilotOpen, setCopilotOpen] = useState(false);
@@ -25,10 +25,10 @@ export function Layout({ children, currentTab, setTab }) {
         </main>
       </div>
 
-      {/* Circular Floating PHANTOM Logo Button */}
-      <PhantomFloatingLogo
-        isOpen={copilotOpen}
-        onClick={() => setCopilotOpen(!copilotOpen)}
+      {/* Very Small Bottom-Right Corner Buddy (Black BG, White Logo, Animated White Text) */}
+      <PhantomCornerBuddy
+        currentTab={currentTab}
+        onOpenCopilot={() => setCopilotOpen(!copilotOpen)}
       />
 
       {/* SecOps Copilot Drawer */}

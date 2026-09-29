@@ -32,7 +32,6 @@ import {
 import { UsbPhantomAssembly } from '../components/landing/UsbPhantomAssembly';
 import { PhantomFloatingLogo } from '../components/ai/PhantomFloatingLogo';
 import { SecOpsCopilotDrawer } from '../components/ai/SecOpsCopilotDrawer';
-import { PhantomScrollNarrator } from '../components/landing/PhantomScrollNarrator';
 import { useAuth } from '../hooks/useAuth';
 
 // Smooth Scroll-Reveal Wrapper using IntersectionObserver
@@ -777,13 +776,6 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
         </div>
       </footer>
-
-      {/* Sticky Bottom Scroll Narrator (Black Background, White Logo, White Text, Scroll Tracking) */}
-      <PhantomScrollNarrator
-        onGetStarted={onOpenLogin}
-        isAuthenticated={isAuthenticated}
-        onLaunchConsole={onLaunchConsole}
-      />
 
       {/* Circular Floating PHANTOM Logo Button */}
       <PhantomFloatingLogo
