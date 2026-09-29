@@ -14,7 +14,8 @@ import {
   ArrowUpRight,
   BarChart3,
   Fingerprint,
-  Terminal
+  Terminal,
+  Camera
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -23,6 +24,7 @@ export function Sidebar({ currentTab, setTab, onOpenCopilot }) {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'scanner', label: 'AI Hardware Scanner', icon: Camera, badge: 'VISION' },
     { id: 'siem', label: 'SIEM Hunt Board', icon: Terminal, badge: 'SPLUNK' },
     { id: 'ports', label: 'Hardware & Ports', icon: Usb, badge: 'PORTS' },
     { id: 'footprints', label: 'USB Footprints', icon: Fingerprint, badge: 'FILES' },

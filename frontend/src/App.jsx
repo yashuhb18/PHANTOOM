@@ -20,6 +20,7 @@ import { HardwarePorts } from './pages/HardwarePorts';
 import { ThreatAnalyticsPage } from './pages/ThreatAnalyticsPage';
 import { USBFootprintsPage } from './pages/USBFootprintsPage';
 import { SIEMHuntBoard } from './pages/SIEMHuntBoard';
+import { HardwareScanner } from './pages/HardwareScanner';
 
 function AppContent() {
   const [currentTab, setCurrentTab] = useState('landing');
@@ -78,6 +79,7 @@ function AppContent() {
       {currentTab === 'dashboard' && (
         <Dashboard setTab={setCurrentTab} setSelectedSessionId={setSelectedSessionId} />
       )}
+      {currentTab === 'scanner' && <HardwareScanner />}
       {currentTab === 'siem' && <SIEMHuntBoard />}
       {currentTab === 'ports' && (
         <HardwarePorts setTab={setCurrentTab} setSelectedSessionId={setSelectedSessionId} />
