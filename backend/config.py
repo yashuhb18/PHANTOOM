@@ -21,6 +21,11 @@ API_KEY = os.getenv("PHANTOM_API_KEY", "phantom-admin-key")
 DB_PATH = BASE_DIR / os.getenv("PHANTOM_DB_NAME", "phantom.db")
 DECOY_DIR = BASE_DIR / "decoy_files"
 
+# MongoDB Atlas Cloud Database Config
+MONGODB_URI = os.getenv("MONGODB_URI", "")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "phantom_soc")
+MONGODB_ENABLED = bool(MONGODB_URI)
+
 # Deception & Agent Config
 CANARY_WATCH_ENABLED = os.getenv("CANARY_WATCH_ENABLED", "True").lower() == "true"
 AI_NARRATION_INTERVAL = float(os.getenv("AI_NARRATION_INTERVAL", "1.5"))

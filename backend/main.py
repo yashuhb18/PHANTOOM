@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import HOST, PORT, DEBUG
 from backend.database import init_db, get_db
+from backend.db.mongo import init_mongo, check_mongo_health
 from backend.core.canary_manager import canary_manager
 from backend.api.routes_sessions import router as sessions_router
 from backend.api.routes_alerts import router as alerts_router
@@ -31,8 +32,10 @@ logger = logging.getLogger("phantom.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Initializing PHANTOM Database...")
+    logger.info("Initializing PHANTOM Database (SQLite)...")
     init_db()
+    logger.info("Connecting to MongoDB Atlas Cluster...")
+    init_mongo()
     # Clean up stale active sessions from previous runs
     try:
         from backend.database import get_db
@@ -106,6 +109,13 @@ app.include_router(ws_router)
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
+@app.get("/api/db/status")
+def get_db_status():
+    return {
+        "sqlite": {"status": "online"},
+        "mongodb": check_mongo_health()
+    }
 
 @app.get("/api/stats")
 def get_system_stats():
