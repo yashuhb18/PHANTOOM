@@ -28,6 +28,7 @@ export function Layout({ children, currentTab, setTab }) {
       {/* Very Small Bottom-Right Corner Buddy (Black BG, White Logo, Animated White Text) */}
       <PhantomCornerBuddy
         currentTab={currentTab}
+        isCopilotOpen={copilotOpen}
         onOpenCopilot={() => setCopilotOpen(!copilotOpen)}
       />
 
