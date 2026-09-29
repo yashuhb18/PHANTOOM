@@ -146,15 +146,6 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
                 className="h-9 w-auto object-contain select-none drop-shadow-[0_0_15px_rgba(253,224,71,0.25)]"
               />
             </div>
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#FDE047]/15 text-[#FDE047] border border-[#FDE047]/30">
-                v2.0 AUTONOMOUS SOC
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                RTX 3050 GPU READY
-              </span>
-            </div>
             <p className="text-xs text-neutral-400">
               Autonomous USB Threat Hunting, Canary Deception Grid & SIEM
             </p>
@@ -401,28 +392,10 @@ export function Login({ onLoginSuccess, onBackToLanding }) {
               </form>
             )}
 
-            {/* Compliance Footer inside Card */}
-            <div className="mt-6 pt-4 border-t border-white/[0.06] text-center">
-              <p className="text-[10px] text-neutral-500 leading-relaxed">
-                By accessing PHANTOM, you authorize kernel bus monitoring, synthetic keystroke velocity auditing, and autonomous process tree containment.
-              </p>
-            </div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 w-full px-6 py-4 border-t border-white/[0.04] bg-[#0A0A0A]/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] font-mono text-neutral-500">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>PHANTOM Autonomous Defense Platform — Active On-Premise Host</span>
-          </div>
-          <div>
-            <span>Model: babar_jamali/deepseek-r-11.5b-cyber (100% GPU)</span>
-          </div>
-        </div>
-      </footer>
 
       {/* RULES & REGULATIONS / EULA MODAL */}
       {showRulesModal && (
