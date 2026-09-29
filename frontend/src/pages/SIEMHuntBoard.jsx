@@ -28,6 +28,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { formatISTTime, formatISTFull } from '../utils/time';
 
 export function SIEMHuntBoard() {
   const { liveEvents } = useWebSocket();
@@ -191,7 +192,7 @@ export function SIEMHuntBoard() {
             id: Date.now(),
             role: 'assistant',
             content: initialText,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            timestamp: formatISTTime(new Date(), { withSuffix: true })
           }
         ]);
       } else {
@@ -200,7 +201,7 @@ export function SIEMHuntBoard() {
             id: Date.now(),
             role: 'assistant',
             content: `Connected to Event ${evt.event_code} (${evt.event_name}). What would you like to investigate about this process or command?`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            timestamp: formatISTTime(new Date(), { withSuffix: true })
           }
         ]);
       }
@@ -210,7 +211,7 @@ export function SIEMHuntBoard() {
           id: Date.now(),
           role: 'assistant',
           content: `Examining Event ${evt.event_code} (${evt.event_name}). Let me know what you would like to analyze about this payload.`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          timestamp: formatISTTime(new Date(), { withSuffix: true })
         }
       ]);
     } finally {
@@ -227,7 +228,7 @@ export function SIEMHuntBoard() {
       id: Date.now(),
       role: 'user',
       content: text.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: formatISTTime(new Date(), { withSuffix: true })
     };
 
     const updatedHistory = [...chatMessages, userMsg];
@@ -263,7 +264,7 @@ export function SIEMHuntBoard() {
             id: Date.now() + 1,
             role: 'assistant',
             content: replyText,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            timestamp: formatISTTime(new Date(), { withSuffix: true })
           }
         ]);
       } else {
@@ -273,7 +274,7 @@ export function SIEMHuntBoard() {
             id: Date.now() + 1,
             role: 'assistant',
             content: 'Unable to query the AI engine right now. Please verify backend connectivity.',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            timestamp: formatISTTime(new Date(), { withSuffix: true })
           }
         ]);
       }
@@ -284,7 +285,7 @@ export function SIEMHuntBoard() {
           id: Date.now() + 1,
           role: 'assistant',
           content: `Error communicating with AI analyst: ${e.message}`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          timestamp: formatISTTime(new Date(), { withSuffix: true })
         }
       ]);
     } finally {
@@ -648,7 +649,7 @@ export function SIEMHuntBoard() {
 
                       {/* Timestamp */}
                       <div className="w-36 shrink-0 font-mono text-xs text-slate-400">
-                        {evt.timestamp ? evt.timestamp.slice(11, 23) : '--:--:--'}
+                        {evt.timestamp ? formatISTTime(evt.timestamp, { withSuffix: true }) : '--:--:--'}
                       </div>
 
                       {/* Event Code Badge */}
@@ -808,7 +809,7 @@ export function SIEMHuntBoard() {
             {/* Event Reference Card */}
             <div className="px-5 py-3 bg-black/60 border-b border-white/[0.08] font-mono text-xs space-y-1 shrink-0">
               <div className="flex items-center justify-between text-slate-400">
-                <span>Time: {triageEvent.timestamp}</span>
+                <span>Time: {formatISTFull(triageEvent.timestamp)}</span>
                 <span>Host: {triageEvent.host}</span>
                 <span>PID: {triageEvent.extracted_fields?.PID || triageEvent.extracted_fields?.TargetPID || 'N/A'}</span>
               </div>

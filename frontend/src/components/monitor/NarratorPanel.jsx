@@ -12,6 +12,7 @@ import {
   Check, 
   Zap 
 } from 'lucide-react';
+import { formatISTTime } from '../../utils/time';
 
 /**
  * Transforms complex technical logs into clean, human-centered
@@ -325,7 +326,7 @@ export function NarratorPanel({ messages = [] }) {
                     )}
 
                     <span className="font-mono text-[10px] text-neutral-400">
-                      {msg.timestamp ? msg.timestamp.slice(11, 19) : 'LIVE'}
+                      {msg.timestamp ? formatISTTime(msg.timestamp, { withSuffix: true }) : 'LIVE'}
                     </span>
                   </div>
 

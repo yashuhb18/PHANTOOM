@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertBadge } from '../common/AlertBadge';
 import { Filter, Trash2, Activity } from 'lucide-react';
+import { formatISTTime } from '../../utils/time';
 
 export function EventFeed({ events, onClear }) {
   const [filter, setFilter] = useState('ALL');
@@ -57,7 +58,7 @@ export function EventFeed({ events, onClear }) {
             <div key={evt.event_id || idx} className="p-3.5 px-6 hover:bg-white/[0.02] transition-colors">
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-neutral-500 text-[11px]">{evt.timestamp?.slice(11, 23)}</span>
+                  <span className="text-neutral-500 text-[11px] font-mono">{formatISTTime(evt.timestamp, { withMs: false, withSuffix: true })}</span>
                   <span className="px-2 py-0.5 rounded-full text-[9px] bg-neutral-900 text-neutral-300 border border-white/[0.08] font-bold">
                     {evt.source}
                   </span>

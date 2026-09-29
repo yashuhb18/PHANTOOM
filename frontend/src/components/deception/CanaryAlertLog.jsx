@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertOctagon } from 'lucide-react';
 import { AlertBadge } from '../common/AlertBadge';
+import { formatISTTime } from '../../utils/time';
 
 export function CanaryAlertLog({ hits }) {
   return (
@@ -31,7 +32,7 @@ export function CanaryAlertLog({ hits }) {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-1.5 text-[11px] text-neutral-400">
-                  <span className="font-mono">{hit.timestamp?.slice(11, 19)} UTC</span>
+                  <span className="font-mono">{formatISTTime(hit.timestamp, { withSuffix: true })}</span>
                   <span>•</span>
                   <span>Process: <code className="font-mono text-white bg-neutral-900 px-1.5 py-0.5 rounded-lg border border-white/[0.06]">{hit.process_name} (PID:{hit.process_id})</code></span>
                   {hit.session_id && (

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Usb, ArrowRight } from 'lucide-react';
 import { AlertBadge } from '../common/AlertBadge';
+import { formatISTTime } from '../../utils/time';
 
 export function ActiveSessions({ sessions, onSelectSession }) {
   if (!sessions || sessions.length === 0) {
@@ -51,7 +52,7 @@ export function ActiveSessions({ sessions, onSelectSession }) {
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-neutral-400">
                     <span className="font-mono text-neutral-500">{sess.session_id}</span>
                     <span>•</span>
-                    <span className="font-mono">{sess.inserted_at?.slice(11, 19)} UTC</span>
+                    <span className="font-mono">{formatISTTime(sess.inserted_at, { withSuffix: true })}</span>
                   </div>
                 </div>
               </div>

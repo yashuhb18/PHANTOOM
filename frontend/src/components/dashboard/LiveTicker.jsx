@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity } from 'lucide-react';
 import { AlertBadge } from '../common/AlertBadge';
+import { formatISTTime } from '../../utils/time';
 
 export function LiveTicker({ events }) {
   const displayEvents = events?.slice(0, 6) || [];
@@ -27,7 +28,7 @@ export function LiveTicker({ events }) {
             <div key={evt.event_id || idx} className="p-3.5 px-6 flex items-center justify-between text-xs hover:bg-white/[0.02] transition-colors">
               <div className="flex items-center gap-3 overflow-hidden">
                 <span className="text-[11px] font-mono text-neutral-500 shrink-0">
-                  {evt.timestamp ? evt.timestamp.slice(11, 19) : '00:00:00'}
+                  {evt.timestamp ? formatISTTime(evt.timestamp, { withSuffix: true }) : '00:00:00'}
                 </span>
                 <span className="px-2 py-0.5 rounded-full font-mono text-[9px] bg-neutral-900 text-neutral-300 border border-white/[0.08] shrink-0 font-bold">
                   {evt.source}

@@ -26,7 +26,7 @@ export function LiveMonitor() {
               </span>
               <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-[#FDE047] border border-amber-500/30">
                 <Radio className="w-3 h-3 text-[#FDE047] animate-pulse" />
-                LOCAL AI: QWEN 2.5 CODER
+                LOCAL AI: DEEPSEEK-R1 CYBER
               </span>
             </div>
             <p className="text-xs text-neutral-400 mt-1">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldAlert, ShieldCheck, Zap, Lock } from 'lucide-react';
 import { AlertBadge } from '../components/common/AlertBadge';
 import { LoadingState } from '../components/common/LoadingState';
+import { formatISTFull } from '../utils/time';
 
 export function AlertsActions() {
   const [alerts, setAlerts] = useState([]);
@@ -121,7 +122,7 @@ export function AlertsActions() {
                     </div>
                     <p className="text-xs text-neutral-400 mt-1">{alert.description}</p>
                     <div className="flex items-center gap-2 mt-2 text-[11px] text-neutral-500 font-mono">
-                      <span>{alert.created_at?.slice(0, 19).replace('T', ' ')} UTC</span>
+                      <span>{formatISTFull(alert.created_at)}</span>
                       <span>•</span>
                       <span>Target: {alert.session_id}</span>
                       <span>•</span>

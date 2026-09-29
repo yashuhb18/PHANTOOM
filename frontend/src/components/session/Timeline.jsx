@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertBadge } from '../common/AlertBadge';
+import { formatISTTime } from '../../utils/time';
 
 export function Timeline({ events, activeIndex }) {
   if (!events || events.length === 0) {
@@ -26,7 +27,7 @@ export function Timeline({ events, activeIndex }) {
                 <AlertBadge severity={evt.severity} />
               </div>
               <div className="flex items-center gap-2 mt-1 text-[11px] text-neutral-400">
-                <span className="font-mono">{evt.timestamp?.slice(11, 19)}</span>
+                <span className="font-mono">{formatISTTime(evt.timestamp, { withSuffix: true })}</span>
                 <span>•</span>
                 <span>Subsystem: {evt.source}</span>
                 {evt.risk_score_delta > 0 && (

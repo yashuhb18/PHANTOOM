@@ -1,9 +1,18 @@
-import React from 'react';
-import { ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ExternalLink, Clock } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { formatISTTime } from '../../utils/time';
 
 export function Header({ currentTab, setTab, onOpenCopilot }) {
   const { isLiveConnected, isNarratorConnected } = useWebSocket();
+  const [istTime, setIstTime] = useState(() => formatISTTime(new Date(), { withSuffix: true }));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIstTime(formatISTTime(new Date(), { withSuffix: true }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const titleMap = {
     dashboard: 'Security Overview',
@@ -26,6 +35,12 @@ export function Header({ currentTab, setTab, onOpenCopilot }) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Live Indian Standard Time (IST) Clock */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-[#141414] text-[11px] font-mono select-none text-neutral-300">
+          <Clock className="w-3.5 h-3.5 text-[#FDE047]" />
+          <span className="font-semibold text-white tracking-wide">{istTime}</span>
+        </div>
+
         {/* Status Indicators (Pills) */}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-[#141414] text-[11px] font-mono select-none">
           <span className={`w-2 h-2 rounded-full ${isLiveConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />

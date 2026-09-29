@@ -1,6 +1,7 @@
 import React from 'react';
 import { Usb, ShieldAlert } from 'lucide-react';
 import { AlertBadge } from '../common/AlertBadge';
+import { formatISTFull } from '../../utils/time';
 
 export function DeviceInfo({ session }) {
   if (!session) return null;
@@ -40,7 +41,7 @@ export function DeviceInfo({ session }) {
         </div>
         <div>
           <span className="text-neutral-500 block mb-1 font-mono uppercase text-[10px]">Insertion Time</span>
-          <span className="font-mono font-semibold text-white">{session.inserted_at?.replace('T', ' ')?.slice(0, 19)} UTC</span>
+          <span className="font-mono font-semibold text-white">{formatISTFull(session.inserted_at)}</span>
         </div>
         <div>
           <span className="text-neutral-500 block mb-1 font-mono uppercase text-[10px]">Session Status</span>

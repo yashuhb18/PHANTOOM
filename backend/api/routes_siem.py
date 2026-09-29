@@ -349,13 +349,15 @@ def get_siem_stats():
         code_counts[code] = code_counts.get(code, 0) + 1
         sourcetype_counts[stype] = sourcetype_counts.get(stype, 0) + 1
 
-        # Bucket by hour:minute (e.g. "12:15")
+        # Bucket by hour:minute in Indian Standard Time (IST: UTC + 5:30)
         ts = r["timestamp"]
         try:
-            # Format: 2026-09-28T04:14:45Z -> slice hour:minute
-            bucket_key = ts[11:16] if len(ts) >= 16 else "Unknown"
+            ts_clean = ts.replace("Z", "").replace(" ", "T")
+            dt_utc = datetime.datetime.fromisoformat(ts_clean)
+            dt_ist = dt_utc + datetime.timedelta(hours=5, minutes=30)
+            bucket_key = dt_ist.strftime("%H:%M")
         except Exception:
-            bucket_key = "General"
+            bucket_key = ts[11:16] if len(ts) >= 16 else "General"
 
         if bucket_key not in time_buckets:
             time_buckets[bucket_key] = {"total": 0, "critical": 0, "high": 0, "other": 0}
