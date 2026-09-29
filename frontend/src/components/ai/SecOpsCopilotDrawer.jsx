@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { 
   Bot, 
   X, 
@@ -15,7 +16,7 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Greetings, Investigator. I am PHANTOM Copilot, your autonomous cyber intelligence specialist. I stand ready to assist you with threat hunting, hardware forensics, and behavioral analysis. How may I assist your operations today?'
+      content: "Hey! I'm PHANTOM Copilot, running locally on your workstation's RTX 3050 GPU via DeepSeek-R1.\n\nI have direct visibility into your live USB telemetry, canary traps, and alert logs. You can ask me about attached devices, investigate recent alerts, or paste an obfuscated script into the **Script De-obfuscator** tab. How can I assist you right now?"
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
@@ -238,14 +239,39 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                   )}
 
                   <div
-                    className={`max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed whitespace-pre-wrap ${
+                    className={`max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed ${
                       m.role === 'user'
-                        ? 'bg-[#FDE047] text-black font-semibold shadow-lg shadow-[#FDE047]/5'
+                        ? 'bg-[#FDE047] text-black font-semibold shadow-lg shadow-[#FDE047]/5 whitespace-pre-wrap'
                         : 'bg-[#141414] border border-white/[0.08] text-neutral-200 shadow-md'
                     }`}
                   >
                     {m.content ? (
-                      m.content
+                      m.role === 'user' ? (
+                        m.content
+                      ) : (
+                        <div className="space-y-2 markdown-chat-content text-xs">
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-neutral-200 text-xs font-normal">{children}</p>,
+                              strong: ({ children }) => <strong className="font-bold text-[#FDE047]">{children}</strong>,
+                              ul: ({ children }) => <ul className="space-y-1.5 my-2 pl-4 list-disc marker:text-[#FDE047] text-neutral-300">{children}</ul>,
+                              ol: ({ children }) => <ol className="space-y-1.5 my-2 pl-4 list-decimal marker:text-[#FDE047] text-neutral-300 font-medium">{children}</ol>,
+                              li: ({ children }) => <li className="text-neutral-300 leading-relaxed text-xs">{children}</li>,
+                              code: ({ inline, children }) =>
+                                inline ? (
+                                  <code className="px-1.5 py-0.5 rounded bg-black/60 text-[#FDE047] font-mono text-[11px] border border-white/10">{children}</code>
+                                ) : (
+                                  <pre className="p-3 my-2 rounded-xl bg-black border border-white/10 overflow-x-auto text-[11px] font-mono text-emerald-400 leading-snug">{children}</pre>
+                                ),
+                              h1: ({ children }) => <h3 className="font-bold text-white text-sm mt-3 mb-1 text-[#FDE047]">{children}</h3>,
+                              h2: ({ children }) => <h4 className="font-bold text-white text-xs sm:text-sm mt-2.5 mb-1 text-[#FDE047]">{children}</h4>,
+                              h3: ({ children }) => <h5 className="font-bold text-white text-xs mt-2 mb-1 text-[#FDE047]">{children}</h5>,
+                            }}
+                          >
+                            {m.content}
+                          </ReactMarkdown>
+                        </div>
+                      )
                     ) : (
                       <div className="flex items-center gap-2 text-neutral-400 italic">
                         <Sparkles className="w-3.5 h-3.5 text-[#FDE047] animate-spin" />
