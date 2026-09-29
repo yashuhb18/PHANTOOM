@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
@@ -25,7 +25,14 @@ function AppContent() {
   const [currentTab, setCurrentTab] = useState('landing');
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [loginInitialRegister, setLoginInitialRegister] = useState(false);
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, logout } = useAuthContext();
+
+  // If user is on landing page, automatically log out session so re-entering requires login
+  useEffect(() => {
+    if (currentTab === 'landing' && isAuthenticated) {
+      logout();
+    }
+  }, [currentTab, isAuthenticated, logout]);
 
   // If user navigates to login
   if (currentTab === 'login') {
@@ -51,12 +58,8 @@ function AppContent() {
           setCurrentTab('login');
         }}
         onLaunchConsole={() => {
-          if (isAuthenticated) {
-            setCurrentTab('dashboard');
-          } else {
-            setLoginInitialRegister(false);
-            setCurrentTab('login');
-          }
+          setLoginInitialRegister(false);
+          setCurrentTab('login');
         }} 
       />
     );

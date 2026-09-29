@@ -74,6 +74,13 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
 
+  // When user visits or returns to the main landing page, automatically log out
+  useEffect(() => {
+    if (isAuthenticated) {
+      logout();
+    }
+  }, [isAuthenticated, logout]);
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -152,42 +159,28 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
               </span>
             </button>
 
-            {isAuthenticated ? (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onLaunchConsole}
-                  className={`font-bold text-xs sm:text-sm px-4 sm:px-5 py-1.5 sm:py-2 rounded-full pill-button shadow-md flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 ${
-                    isScrolled
-                      ? 'bg-[#FDE047] hover:bg-[#FACC15] text-black shadow-[0_0_15px_rgba(253,224,71,0.3)]'
-                      : 'bg-black hover:bg-neutral-900 text-white'
-                  }`}
-                >
-                  <span>Open Console</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={logout}
-                  className={`text-xs font-semibold px-2.5 py-1.5 rounded-full transition-all cursor-pointer ${
-                    isScrolled ? 'text-neutral-400 hover:text-white' : 'text-black/60 hover:text-black'
-                  }`}
-                  title="Sign Out"
-                >
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={onOpenLogin}
-                className={`font-bold text-xs sm:text-sm px-4 sm:px-5 py-1.5 sm:py-2 rounded-full pill-button shadow-md flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 ${
-                  isScrolled
-                    ? 'bg-[#FDE047] hover:bg-[#FACC15] text-black shadow-[0_0_15px_rgba(253,224,71,0.3)]'
-                    : 'bg-black hover:bg-neutral-900 text-white'
-                }`}
-              >
-                <span>Get Started</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <button
+              onClick={onOpenLogin}
+              className={`font-semibold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full transition-all duration-300 cursor-pointer ${
+                isScrolled
+                  ? 'text-neutral-300 hover:text-white'
+                  : 'text-black/80 hover:text-black'
+              }`}
+            >
+              <span>Log In</span>
+            </button>
+
+            <button
+              onClick={onOpenLogin}
+              className={`font-bold text-xs sm:text-sm px-4 sm:px-5 py-1.5 sm:py-2 rounded-full pill-button shadow-md flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 ${
+                isScrolled
+                  ? 'bg-[#FDE047] hover:bg-[#FACC15] text-black shadow-[0_0_15px_rgba(253,224,71,0.3)]'
+                  : 'bg-black hover:bg-neutral-900 text-white'
+              }`}
+            >
+              <span>Get Started</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </header>
@@ -227,10 +220,10 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             {/* Pill CTA Buttons */}
             <div className="flex flex-wrap items-center gap-4 mb-12 anim-buttons">
               <button
-                onClick={isAuthenticated ? onLaunchConsole : onOpenLogin}
+                onClick={onOpenLogin}
                 className="bg-black hover:bg-neutral-900 text-white font-bold text-base px-8 py-4 rounded-full pill-button shadow-xl flex items-center gap-2.5 cursor-pointer"
               >
-                <span>{isAuthenticated ? 'Open Console' : 'Get Started'}</span>
+                <span>Get Started</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
 
@@ -667,10 +660,10 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
                 Frame {terminalStep + 1} of {terminalLogs.length} • Autonomous enforcer armed
               </span>
               <button
-                onClick={isAuthenticated ? onLaunchConsole : onOpenLogin}
+                onClick={onOpenLogin}
                 className="bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-xs px-5 py-2 rounded-full pill-button transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <span>{isAuthenticated ? 'Launch Full Console' : 'Get Started'}</span>
+                <span>Launch Console</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -732,10 +725,10 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
             <div className="shrink-0">
               <button
-                onClick={isAuthenticated ? onLaunchConsole : (onOpenRegister || onOpenLogin)}
+                onClick={onOpenLogin}
                 className="bg-black hover:bg-neutral-900 text-white font-bold text-base px-9 py-4 rounded-full pill-button shadow-2xl flex items-center gap-3 cursor-pointer"
               >
-                <span>{isAuthenticated ? 'Launch Live Console' : 'Get Started Now'}</span>
+                <span>Get Started Now</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
             </div>
@@ -765,8 +758,8 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             <a href="#features" className="hover:text-white transition-colors">Features</a>
             <a href="#architecture" className="hover:text-white transition-colors">Architecture</a>
             <a href="#benchmarks" className="hover:text-white transition-colors">Benchmarks</a>
-            <button onClick={isAuthenticated ? onLaunchConsole : onOpenLogin} className="text-[#FDE047] hover:underline font-bold">
-              {isAuthenticated ? 'Console →' : 'Get Started →'}
+            <button onClick={onOpenLogin} className="text-[#FDE047] hover:underline font-bold">
+              Get Started →
             </button>
           </div>
 

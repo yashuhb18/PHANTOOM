@@ -57,7 +57,10 @@ export function Sidebar({ currentTab, setTab, onOpenCopilot }) {
         {/* Product Website Quick Jump */}
         <div className="p-3 space-y-2">
           <button
-            onClick={() => setTab('landing')}
+            onClick={() => {
+              logout();
+              setTab('landing');
+            }}
             className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-full text-xs font-bold bg-[#FDE047]/10 hover:bg-[#FDE047]/20 text-[#FDE047] border border-[#FDE047]/30 transition-all cursor-pointer group"
           >
             <span>Product Website</span>

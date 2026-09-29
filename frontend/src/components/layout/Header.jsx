@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, Clock, Sparkles } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useAuth } from '../../hooks/useAuth';
 import { formatISTTime } from '../../utils/time';
 
 export function Header({ currentTab, setTab, onOpenCopilot }) {
   const { isLiveConnected, isNarratorConnected } = useWebSocket();
+  const { logout } = useAuth();
   const [istTime, setIstTime] = useState(() => formatISTTime(new Date(), { withSuffix: true }));
 
   useEffect(() => {
@@ -66,9 +68,12 @@ export function Header({ currentTab, setTab, onOpenCopilot }) {
           <span>SecOps Copilot</span>
         </button>
 
-        {/* Back to product website pill button */}
+        {/* Back to product website pill button (logs out so returning requires login) */}
         <button
-          onClick={() => setTab('landing')}
+          onClick={() => {
+            logout();
+            setTab('landing');
+          }}
           className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-semibold text-white transition-all cursor-pointer pill-button shrink-0"
         >
           <ExternalLink className="w-3.5 h-3.5" />
