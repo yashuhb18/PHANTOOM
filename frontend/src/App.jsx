@@ -28,12 +28,37 @@ function AppContent() {
 
   // If user navigates to login
   if (currentTab === 'login') {
-    return <Login onLoginSuccess={() => setCurrentTab('dashboard')} />;
+    return (
+      <Login 
+        onLoginSuccess={() => setCurrentTab('dashboard')} 
+        onBackToLanding={() => setCurrentTab('landing')} 
+      />
+    );
   }
 
   // If on landing page
   if (currentTab === 'landing') {
-    return <LandingPage onLaunchConsole={() => setCurrentTab('dashboard')} />;
+    return (
+      <LandingPage 
+        onLaunchConsole={() => {
+          if (isAuthenticated) {
+            setCurrentTab('dashboard');
+          } else {
+            setCurrentTab('login');
+          }
+        }} 
+      />
+    );
+  }
+
+  // If not authenticated, require login before entering console
+  if (!isAuthenticated) {
+    return (
+      <Login 
+        onLoginSuccess={() => setCurrentTab('dashboard')} 
+        onBackToLanding={() => setCurrentTab('landing')} 
+      />
+    );
   }
 
   // Render dashboard layout with current tab
