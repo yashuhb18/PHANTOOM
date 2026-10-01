@@ -170,11 +170,11 @@ export function ThreatAnalyticsPage() {
   const percentageChange = analyticsData?.percentage_change ?? 18;
   const totalThreats = analyticsData?.total_threats ?? 353;
   const distributionData = analyticsData?.distribution ?? [
-    { name: 'Executables', count: 113, percentage: 32, color: '#FFE600', textColor: '#FFE600' },
-    { name: 'Documents', count: 21, percentage: 6, color: '#8E7D23', textColor: '#A3912E' },
-    { name: 'Scripts', count: 21, percentage: 6, color: '#3A3A40', textColor: '#FFE600' },
-    { name: 'Images', count: 196, percentage: 56, color: '#686872', textColor: '#D4D4D8' },
-    { name: 'Archives', count: 2, percentage: 1, color: '#E8E5D5', textColor: '#E8E5D5' },
+    { name: 'Executables', count: 113, percentage: 32, color: '#EF4444', textColor: '#F87171' },
+    { name: 'Documents', count: 21, percentage: 6, color: '#38BDF8', textColor: '#38BDF8' },
+    { name: 'Scripts', count: 21, percentage: 6, color: '#A855F7', textColor: '#C084FC' },
+    { name: 'Images', count: 196, percentage: 56, color: '#10B981', textColor: '#34D399' },
+    { name: 'Archives', count: 2, percentage: 1, color: '#F97316', textColor: '#FB923C' },
   ];
 
   const timelineRaw = analyticsData?.timeline ?? [
@@ -308,19 +308,11 @@ export function ThreatAnalyticsPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-80px)] w-full overflow-hidden pb-16">
-      {/* Golden Ambient Atmospheric Glow */}
-      <div
-        className="pointer-events-none absolute -left-32 bottom-20 w-[550px] h-[550px] rounded-full blur-[140px] opacity-25"
-        style={{
-          background: 'radial-gradient(circle, rgba(253, 224, 71, 0.45) 0%, rgba(245, 158, 11, 0.15) 50%, transparent 80%)',
-        }}
-      />
-
       <div className="max-w-[1080px] mx-auto space-y-6 relative z-10">
         {/* ══════════════════════════════════════════════════════════════════════
             CARD 1: THREAT ACTIVITY (REAL-TIME ANALYSIS)
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="bg-[#0C0C0E]/95 border border-yellow-500/35 hover:border-yellow-500/50 transition-all rounded-[32px] p-8 shadow-[0_0_40px_rgba(0,0,0,0.85),0_0_20px_rgba(253,224,71,0.06)] relative overflow-hidden backdrop-blur-md">
+        <div className="bg-[#0C0C0E]/95 border border-white/[0.08] hover:border-white/[0.15] transition-all rounded-[32px] p-8 shadow-2xl relative overflow-hidden backdrop-blur-md">
           {/* Header Row */}
           <div className="flex items-start justify-between">
             <div>
@@ -335,10 +327,10 @@ export function ThreatAnalyticsPage() {
             {/* LIVE Pulse Indicator */}
             <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#DFFF00] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#DFFF00] shadow-[0_0_8px_#DFFF00]"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></span>
               </span>
-              <span className="text-[#DFFF00] font-mono text-xs font-bold tracking-widest">
+              <span className="text-emerald-400 font-mono text-xs font-bold tracking-widest">
                 LIVE
               </span>
             </div>
@@ -348,10 +340,10 @@ export function ThreatAnalyticsPage() {
           <div className="flex items-end justify-between mt-5 mb-2">
             <div>
               <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-extrabold font-mono text-[#FFE600] tracking-tight">
+                <span className="text-4xl font-extrabold font-mono text-white tracking-tight">
                   {totalSuspicious}
                 </span>
-                <span className={`flex items-center text-sm font-mono font-bold ${percentageChange >= 0 ? 'text-[#FFE600]' : 'text-emerald-400'}`}>
+                <span className={`flex items-center text-sm font-mono font-bold ${percentageChange >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
                   {percentageChange >= 0 ? (
                     <ArrowUp className="w-3.5 h-3.5 stroke-[3] mr-0.5" />
                   ) : (
@@ -360,7 +352,7 @@ export function ThreatAnalyticsPage() {
                   {Math.abs(percentageChange)}%
                 </span>
               </div>
-              <p className="text-[#FFE600] font-mono text-[11px] font-bold tracking-[0.2em] uppercase mt-1">
+              <p className="text-neutral-400 font-mono text-[11px] font-bold tracking-[0.2em] uppercase mt-1">
                 SUSPICIOUS EVENTS
               </p>
             </div>
@@ -370,7 +362,7 @@ export function ThreatAnalyticsPage() {
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
-                className="appearance-none bg-[#18181D] hover:bg-[#202026] text-neutral-300 font-sans text-xs border border-white/[0.12] rounded-full px-4 py-2 pr-9 focus:outline-none focus:border-[#FFE600] transition-colors cursor-pointer"
+                className="appearance-none bg-[#18181D] hover:bg-[#202026] text-neutral-300 font-sans text-xs border border-white/[0.12] rounded-full px-4 py-2 pr-9 focus:outline-none focus:border-white/40 transition-colors cursor-pointer"
               >
                 <option value="30m">Last 30 min</option>
                 <option value="1h">Last 1 hour</option>
@@ -394,15 +386,15 @@ export function ThreatAnalyticsPage() {
                 top: `${Math.max(50, currentTooltip.y)}px`,
               }}
             >
-              <div className="bg-[#141418] border border-yellow-500/50 rounded-xl px-3.5 py-1.5 shadow-[0_0_20px_rgba(253,224,71,0.35)] text-center relative mb-2">
+              <div className="bg-[#141418] border border-white/[0.15] rounded-xl px-3.5 py-1.5 shadow-2xl text-center relative mb-2">
                 <span className="block text-[10px] font-mono text-neutral-400 uppercase tracking-wider leading-none mb-1">
                   {currentTooltip.time}
                 </span>
-                <span className="block text-xs font-mono font-extrabold text-[#FFE600] leading-tight whitespace-nowrap">
+                <span className="block text-xs font-mono font-extrabold text-white leading-tight whitespace-nowrap">
                   {currentTooltip.threats} Threats
                 </span>
                 {/* Pointer Tip */}
-                <div className="w-2.5 h-2.5 bg-[#141418] border-r border-b border-yellow-500/50 transform rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2" />
+                <div className="w-2.5 h-2.5 bg-[#141418] border-r border-b border-white/[0.15] transform rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2" />
               </div>
             </div>
 
@@ -412,21 +404,18 @@ export function ThreatAnalyticsPage() {
               className="w-full h-[220px] overflow-visible cursor-crosshair"
             >
               <defs>
-                {/* Glowing Yellow Area Gradient */}
-                <linearGradient id="yellowAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#FFE600" stopOpacity="0.45" />
-                  <stop offset="40%" stopColor="#FFE600" stopOpacity="0.18" />
-                  <stop offset="90%" stopColor="#FFE600" stopOpacity="0.02" />
-                  <stop offset="100%" stopColor="#FFE600" stopOpacity="0.0" />
+                {/* Clean Cyber Area Gradient */}
+                <linearGradient id="cyberAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.2" />
+                  <stop offset="50%" stopColor="#38BDF8" stopOpacity="0.05" />
+                  <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.0" />
                 </linearGradient>
 
-                {/* Intense Yellow Glow Filter */}
+                {/* Subtle Clean Glow Filter */}
                 <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="4" result="blur1" />
-                  <feGaussianBlur stdDeviation="9" result="blur2" />
+                  <feGaussianBlur stdDeviation="3" result="blur" />
                   <feMerge>
-                    <feMergeNode in="blur2" />
-                    <feMergeNode in="blur1" />
+                    <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
@@ -462,7 +451,7 @@ export function ThreatAnalyticsPage() {
                 y1="30"
                 x2={currentTooltip.x}
                 y2="195"
-                stroke="#FFE600"
+                stroke="#38BDF8"
                 strokeWidth="1.5"
                 strokeDasharray="3 3"
                 opacity="0.85"
@@ -476,7 +465,7 @@ export function ThreatAnalyticsPage() {
                   y1="30"
                   x2={hoverMouseX}
                   y2="195"
-                  stroke="rgba(255, 230, 0, 0.2)"
+                  stroke="rgba(255, 255, 255, 0.15)"
                   strokeWidth="1"
                   className="pointer-events-none"
                 />
@@ -486,7 +475,7 @@ export function ThreatAnalyticsPage() {
               {areaFillPath && (
                 <path
                   d={areaFillPath}
-                  fill="url(#yellowAreaGradient)"
+                  fill="url(#cyberAreaGradient)"
                   className="transition-all duration-500 ease-out"
                 />
               )}
@@ -496,7 +485,7 @@ export function ThreatAnalyticsPage() {
                 <path
                   d={smoothCurvePath}
                   fill="none"
-                  stroke="#FFE600"
+                  stroke="#38BDF8"
                   strokeWidth="2.5"
                   filter="url(#neonGlow)"
                   className="transition-all duration-500 ease-out"
@@ -508,14 +497,14 @@ export function ThreatAnalyticsPage() {
                 cx={currentTooltip.x}
                 cy={currentTooltip.y}
                 r="8"
-                fill="rgba(255, 230, 0, 0.35)"
+                fill="rgba(56, 189, 248, 0.25)"
                 className="transition-all duration-150 ease-out"
               />
               <circle
                 cx={currentTooltip.x}
                 cy={currentTooltip.y}
                 r="5"
-                fill="#FFE600"
+                fill="#38BDF8"
                 stroke="#FFFFFF"
                 strokeWidth="2"
                 className="transition-all duration-150 ease-out"
@@ -539,7 +528,7 @@ export function ThreatAnalyticsPage() {
                 );
               })}
 
-              {/* X-Axis Timestamps (Active slot highlights glowing yellow) */}
+              {/* X-Axis Timestamps */}
               {chartPoints.map((tick, i) => {
                 const isActive = tick.time === currentTooltip.time;
                 return (
@@ -547,7 +536,7 @@ export function ThreatAnalyticsPage() {
                     key={i}
                     x={tick.x}
                     y="218"
-                    fill={isActive ? '#FFE600' : '#71717A'}
+                    fill={isActive ? '#38BDF8' : '#71717A'}
                     fontWeight={isActive ? 'bold' : 'normal'}
                     fontSize="10"
                     fontFamily="monospace"
@@ -565,7 +554,7 @@ export function ThreatAnalyticsPage() {
         {/* ══════════════════════════════════════════════════════════════════════
             CARD 2: THREAT DISTRIBUTION (FILE TYPE ANALYSIS - PIE / DONUT)
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="bg-[#0C0C0E]/95 border border-yellow-500/35 hover:border-yellow-500/50 transition-all rounded-[32px] p-8 shadow-[0_0_40px_rgba(0,0,0,0.85),0_0_20px_rgba(253,224,71,0.06)] relative overflow-hidden backdrop-blur-md">
+        <div className="bg-[#0C0C0E]/95 border border-white/[0.08] hover:border-white/[0.15] transition-all rounded-[32px] p-8 shadow-2xl relative overflow-hidden backdrop-blur-md">
           {/* Header Row */}
           <div className="flex items-start justify-between mb-8">
             <div>
@@ -585,7 +574,7 @@ export function ThreatAnalyticsPage() {
                   onClick={() => setChartMode('donut')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-[10px] font-bold tracking-wider transition-all cursor-pointer ${
                     chartMode === 'donut'
-                      ? 'bg-[#FFE600] text-black shadow-sm'
+                      ? 'bg-white text-black shadow-sm'
                       : 'text-neutral-400 hover:text-white'
                   }`}
                   title="Switch to Donut View"
@@ -597,7 +586,7 @@ export function ThreatAnalyticsPage() {
                   onClick={() => setChartMode('pie')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-[10px] font-bold tracking-wider transition-all cursor-pointer ${
                     chartMode === 'pie'
-                      ? 'bg-[#FFE600] text-black shadow-sm'
+                      ? 'bg-white text-black shadow-sm'
                       : 'text-neutral-400 hover:text-white'
                   }`}
                   title="Switch to Solid Pie View"
@@ -612,7 +601,7 @@ export function ThreatAnalyticsPage() {
                 <select
                   value={timeRange}
                   onChange={(e) => setTimeRange(e.target.value)}
-                  className="appearance-none bg-[#18181D] hover:bg-[#202026] text-neutral-300 font-sans text-xs border border-white/[0.12] rounded-full px-4 py-2 pr-9 focus:outline-none focus:border-[#FFE600] transition-colors cursor-pointer"
+                  className="appearance-none bg-[#18181D] hover:bg-[#202026] text-neutral-300 font-sans text-xs border border-white/[0.12] rounded-full px-4 py-2 pr-9 focus:outline-none focus:border-white/40 transition-colors cursor-pointer"
                 >
                   <option value="30m">Last 30 min</option>
                   <option value="1h">Last 1 hour</option>
@@ -629,9 +618,9 @@ export function ThreatAnalyticsPage() {
             <div className="lg:col-span-6 flex flex-col items-center justify-center relative min-h-[320px]">
               <svg viewBox="0 0 340 340" className="w-[320px] h-[320px] overflow-visible">
                 <defs>
-                  {/* Subtle Yellow Slice Glow */}
-                  <filter id="yellowSliceGlow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="6" result="blur" />
+                  {/* Subtle Slice Glow */}
+                  <filter id="sliceGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
                     <feMerge>
                       <feMergeNode in="blur" />
                       <feMergeNode in="SourceGraphic" />
@@ -651,7 +640,7 @@ export function ThreatAnalyticsPage() {
                         fill={slice.color}
                         stroke={isHovered ? '#FFFFFF' : 'rgba(12, 12, 14, 0.4)'}
                         strokeWidth={isHovered ? 2.5 : 1}
-                        filter={slice.name === 'Executables' || isHovered ? 'url(#yellowSliceGlow)' : undefined}
+                        filter={isHovered ? 'url(#sliceGlow)' : undefined}
                         className="transition-all duration-300 origin-center cursor-pointer"
                         style={{
                           transform: isHovered ? 'scale(1.04)' : 'scale(1)',
@@ -816,10 +805,10 @@ export function ThreatAnalyticsPage() {
               {/* Informative Sub-badge for Solid Pie Mode */}
               {chartMode === 'pie' && (
                 <div className="mt-3 text-center">
-                  <div className="inline-flex items-center gap-2 bg-[#141418] border border-yellow-500/35 rounded-full px-4 py-1.5 shadow-lg">
+                  <div className="inline-flex items-center gap-2 bg-[#141418] border border-white/[0.1] rounded-full px-4 py-1.5 shadow-lg">
                     <span
                       className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: hoveredSlice ? hoveredSlice.color : '#FFE600' }}
+                      style={{ backgroundColor: hoveredSlice ? hoveredSlice.color : '#38BDF8' }}
                     />
                     <span className="font-mono text-xs text-white font-bold tracking-wider">
                       {hoveredSlice
@@ -842,7 +831,7 @@ export function ThreatAnalyticsPage() {
                       onMouseEnter={() => setHoveredSlice(item)}
                       onMouseLeave={() => setHoveredSlice(null)}
                       className={`flex items-center justify-between py-3.5 first:pt-0 last:pb-0 px-2 rounded-lg transition-all duration-200 cursor-pointer ${
-                        isHovered ? 'bg-[#FFE600]/10 border border-[#FFE600]/30 shadow-sm' : 'hover:bg-white/[0.02]'
+                        isHovered ? 'bg-white/[0.06] border border-white/[0.15] shadow-sm' : 'hover:bg-white/[0.02]'
                       }`}
                     >
                       <div className="flex items-center gap-3">

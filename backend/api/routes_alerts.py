@@ -206,11 +206,11 @@ def get_realtime_analytics(time_range: str = "30m"):
     p_archive = max(1, 100 - (p_exec + p_doc + p_script + p_media))
 
     distribution = [
-        {"name": "Executables", "count": exec_count, "percentage": p_exec, "color": "#FFE600", "textColor": "#FFE600"},
-        {"name": "Documents", "count": doc_count, "percentage": p_doc, "color": "#8E7D23", "textColor": "#A3912E"},
-        {"name": "Scripts", "count": script_count, "percentage": p_script, "color": "#3A3A40", "textColor": "#FFE600"},
-        {"name": "Images", "count": media_count, "percentage": p_media, "color": "#686872", "textColor": "#D4D4D8"},
-        {"name": "Archives", "count": archive_count, "percentage": p_archive, "color": "#E8E5D5", "textColor": "#E8E5D5"},
+        {"name": "Executables", "count": exec_count, "percentage": p_exec, "color": "#EF4444", "textColor": "#F87171"},
+        {"name": "Documents", "count": doc_count, "percentage": p_doc, "color": "#38BDF8", "textColor": "#38BDF8"},
+        {"name": "Scripts", "count": script_count, "percentage": p_script, "color": "#A855F7", "textColor": "#C084FC"},
+        {"name": "Images", "count": media_count, "percentage": p_media, "color": "#10B981", "textColor": "#34D399"},
+        {"name": "Archives", "count": archive_count, "percentage": p_archive, "color": "#F97316", "textColor": "#FB923C"},
     ]
 
     conn.close()

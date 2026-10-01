@@ -215,8 +215,8 @@ export function NarratorPanel({ messages = [] }) {
       {/* Clean Minimalist Header: Title + MIC ON/OFF */}
       <div className="p-4 px-6 border-b border-white/[0.06] flex items-center justify-between bg-[#0F0F0F] shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-[#FDE047] flex items-center justify-center text-black shadow-lg shadow-amber-500/10 shrink-0">
-            <Sparkles className="w-4 h-4 fill-current" />
+          <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-black shadow-lg shadow-black/40 shrink-0">
+            <Sparkles className="w-4 h-4 fill-current text-black" />
           </div>
           <div>
             <span className="text-xs font-bold text-white uppercase tracking-wider">
@@ -236,13 +236,13 @@ export function NarratorPanel({ messages = [] }) {
           title={voiceEnabled ? "Mute Voice Alerts" : "Enable Voice Alerts"}
           className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold transition-all cursor-pointer border ${
             voiceEnabled
-              ? 'bg-amber-500/15 border-amber-500/40 text-[#FDE047] shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+              ? 'bg-white/10 border-white/20 text-white shadow-md'
               : 'bg-white/[0.04] border-white/[0.08] text-neutral-400 hover:text-white hover:bg-white/[0.08]'
           }`}
         >
           {voiceEnabled ? (
             <>
-              <Mic className="w-3.5 h-3.5 text-[#FDE047]" />
+              <Mic className="w-3.5 h-3.5 text-sky-400" />
               <span>MIC: ON</span>
             </>
           ) : (
@@ -319,8 +319,8 @@ export function NarratorPanel({ messages = [] }) {
                         <span>{msg.tag}</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-[#FDE047] text-[10px] font-bold font-mono">
-                        <Terminal className="w-3.5 h-3.5 text-[#FDE047] shrink-0" />
+                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.1] text-neutral-300 text-[10px] font-bold font-mono">
+                        <Terminal className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                         <span>{msg.tag}</span>
                       </div>
                     )}
@@ -338,7 +338,7 @@ export function NarratorPanel({ messages = [] }) {
                         playStudioNeuralVoice(alertSentence);
                       }}
                       title="Play Voice Brief"
-                      className="p-1 rounded-lg text-neutral-400 hover:text-[#FDE047] hover:bg-white/[0.08] transition-colors cursor-pointer"
+                      className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
                     >
                       <Volume2 className="w-3.5 h-3.5" />
                     </button>

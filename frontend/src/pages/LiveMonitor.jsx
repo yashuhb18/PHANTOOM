@@ -12,8 +12,8 @@ export function LiveMonitor() {
       {/* Top Threat Hunting HUD Banner */}
       <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-2xl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-neutral-900 border border-white/[0.08] flex items-center justify-center text-[#FDE047] shrink-0 shadow-lg shadow-amber-500/5">
-            <Activity className="w-6 h-6 animate-pulse" />
+          <div className="w-12 h-12 rounded-2xl bg-neutral-900 border border-white/[0.08] flex items-center justify-center text-white shrink-0 shadow-lg shadow-black/40">
+            <Activity className="w-6 h-6 text-sky-400 animate-pulse" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
@@ -24,8 +24,8 @@ export function LiveMonitor() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 HARDWARE LISTENER ACTIVE
               </span>
-              <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-[#FDE047] border border-amber-500/30">
-                <Radio className="w-3 h-3 text-[#FDE047] animate-pulse" />
+              <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-white/[0.06] text-neutral-300 border border-white/[0.12]">
+                <Radio className="w-3 h-3 text-sky-400 animate-pulse" />
                 LOCAL AI: DEEPSEEK-R1 CYBER
               </span>
             </div>

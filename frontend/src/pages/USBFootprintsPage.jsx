@@ -98,23 +98,15 @@ export function USBFootprintsPage() {
 
   return (
     <div className="relative min-h-[calc(100vh-80px)] w-full overflow-hidden pb-16">
-      {/* Atmospheric Golden Glow */}
-      <div
-        className="pointer-events-none absolute -left-32 top-10 w-[550px] h-[550px] rounded-full blur-[140px] opacity-25"
-        style={{
-          background: 'radial-gradient(circle, rgba(253, 224, 71, 0.45) 0%, rgba(245, 158, 11, 0.15) 50%, transparent 80%)',
-        }}
-      />
-
       <div className="max-w-[1140px] mx-auto space-y-6 relative z-10">
         
         {/* ══════════════════════════════════════════════════════════════════════
             HEADER & ACTIONS
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0C0C0E]/95 border border-yellow-500/35 rounded-[28px] p-6 backdrop-blur-md shadow-2xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0C0C0E]/95 border border-white/[0.08] rounded-[28px] p-6 backdrop-blur-md shadow-2xl">
           <div>
             <div className="flex items-center gap-3">
-              <span className="p-2 rounded-xl bg-[#FFE600]/15 border border-[#FFE600]/30 text-[#FFE600]">
+              <span className="p-2 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white">
                 <Usb className="w-5 h-5" />
               </span>
               <div>
@@ -132,10 +124,10 @@ export function USBFootprintsPage() {
             {/* Live Indicator */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#141418] border border-white/[0.08]">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#DFFF00] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#DFFF00]"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
               </span>
-              <span className="text-[#DFFF00] font-mono text-[11px] font-bold tracking-widest uppercase">
+              <span className="text-emerald-400 font-mono text-[11px] font-bold tracking-widest uppercase">
                 {footprints?.is_device_connected ? "MOUNT ACTIVE" : "SURVEILLANCE LIVE"}
               </span>
             </div>
@@ -146,7 +138,7 @@ export function USBFootprintsPage() {
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold font-mono transition-all cursor-pointer ${
                 isSpeaking
                   ? 'bg-amber-500 text-black animate-pulse shadow-[0_0_15px_#f59e0b]'
-                  : 'bg-[#FFE600]/15 hover:bg-[#FFE600]/25 text-[#FFE600] border border-[#FFE600]/30 hover:shadow-[0_0_15px_rgba(253,224,71,0.2)]'
+                  : 'bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/[0.12] hover:shadow-lg'
               }`}
             >
               <Volume2 className="w-4 h-4" />
@@ -170,15 +162,15 @@ export function USBFootprintsPage() {
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
           {/* Hardware Device Identity Card */}
-          <div className="md:col-span-6 bg-[#0C0C0E]/95 border border-yellow-500/25 rounded-2xl p-6 shadow-xl relative overflow-hidden backdrop-blur-md">
+          <div className="md:col-span-6 bg-[#0C0C0E]/95 border border-white/[0.08] rounded-2xl p-6 shadow-xl relative overflow-hidden backdrop-blur-md">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <HardDrive className="w-4 h-4 text-[#FFE600]" />
+                <HardDrive className="w-4 h-4 text-white" />
                 <span className="text-xs font-mono font-bold text-white tracking-widest uppercase">
                   DETECTED HARDWARE TARGET
                 </span>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#FFE600] text-black">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/10 text-neutral-300 border border-white/10">
                 ZERO-TRUST TRIAGE
               </span>
             </div>
@@ -212,7 +204,7 @@ export function USBFootprintsPage() {
                 </div>
                 <div>
                   <span className="text-neutral-500 text-[10px] block uppercase">Hardware Node</span>
-                  <span className="text-[#FFE600] font-bold block">
+                  <span className="text-neutral-200 font-bold block">
                     {device?.pnp_id || "/dev/sdc1"}
                   </span>
                 </div>
@@ -276,11 +268,11 @@ export function USBFootprintsPage() {
         {/* ══════════════════════════════════════════════════════════════════════
             "HAVE A LOOK INTO WHAT WAS CREATED!" ARTIFACTS LIST
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="bg-[#0C0C0E]/95 border border-yellow-500/35 rounded-[32px] p-8 shadow-2xl backdrop-blur-md">
+        <div className="bg-[#0C0C0E]/95 border border-white/[0.08] rounded-[32px] p-8 shadow-2xl backdrop-blur-md">
           <div className="flex items-center justify-between mb-6">
             <div>
               <div className="flex items-center gap-2">
-                <Eye className="w-5 h-5 text-[#FFE600]" />
+                <Eye className="w-5 h-5 text-white" />
                 <h2 className="text-lg font-bold font-mono text-white tracking-wider uppercase">
                   Created Files & Insertion Artifacts
                 </h2>
@@ -289,7 +281,7 @@ export function USBFootprintsPage() {
                 Take a look into the files created on plug-in — inspect raw content, SHA256 hashes & threat scores
               </p>
             </div>
-            <span className="text-xs font-mono text-[#FFE600] font-bold">
+            <span className="text-xs font-mono text-neutral-300 font-bold">
               {artifacts.length} ARTIFACTS FOUND
             </span>
           </div>
@@ -307,8 +299,8 @@ export function USBFootprintsPage() {
                     isThreat
                       ? 'bg-red-500/[0.04] border-red-500/35 hover:border-red-500/60 shadow-[0_0_20px_rgba(239,68,68,0.06)]'
                       : isSuspicious
-                      ? 'bg-amber-500/[0.04] border-amber-500/35 hover:border-amber-500/60'
-                      : 'bg-[#121216] border-white/[0.08] hover:border-yellow-500/40'
+                      ? 'bg-white/[0.02] border-white/[0.1] hover:border-white/[0.2]'
+                      : 'bg-[#121216] border-white/[0.08] hover:border-white/[0.2]'
                   }`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -319,8 +311,8 @@ export function USBFootprintsPage() {
                           isThreat
                             ? 'bg-red-500/20 text-red-400 border border-red-500/30'
                             : isSuspicious
-                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                            : 'bg-[#FFE600]/15 text-[#FFE600] border border-[#FFE600]/30'
+                            ? 'bg-white/[0.06] text-neutral-300 border border-white/[0.1]'
+                            : 'bg-white/[0.06] text-neutral-300 border border-white/[0.1]'
                         }`}
                       >
                         {art.file_name.endsWith('.sh') ? (
@@ -344,8 +336,8 @@ export function USBFootprintsPage() {
                               isThreat
                                 ? 'bg-red-500 text-white shadow-sm'
                                 : isSuspicious
-                                ? 'bg-amber-500 text-black shadow-sm'
-                                : 'bg-[#FFE600] text-black shadow-sm'
+                                ? 'bg-white/10 text-neutral-300 border border-white/10'
+                                : 'bg-white/10 text-neutral-300 border border-white/10'
                             }`}
                           >
                             {art.verdict.replace(/_/g, ' ')}
@@ -393,7 +385,7 @@ export function USBFootprintsPage() {
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-mono font-bold transition-all cursor-pointer ${
                           isThreat
                             ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]'
-                            : 'bg-[#FFE600] hover:bg-yellow-400 text-black shadow-[0_0_15px_rgba(253,224,71,0.25)]'
+                            : 'bg-white hover:bg-neutral-200 text-black shadow-md'
                         }`}
                       >
                         <Eye className="w-4 h-4" />
@@ -415,12 +407,12 @@ export function USBFootprintsPage() {
       ══════════════════════════════════════════════════════════════════════ */}
       {selectedArtifact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#0E0E12] border border-yellow-500/40 rounded-3xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-[0_0_60px_rgba(0,0,0,0.9),0_0_30px_rgba(253,224,71,0.15)] overflow-hidden">
+          <div className="bg-[#0E0E12] border border-white/[0.12] rounded-3xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
             
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] bg-[#141418]">
               <div className="flex items-center gap-3">
-                <span className="p-2 rounded-xl bg-[#FFE600]/15 border border-[#FFE600]/30 text-[#FFE600]">
+                <span className="p-2 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white">
                   <FileText className="w-4 h-4" />
                 </span>
                 <div>
@@ -474,7 +466,7 @@ export function USBFootprintsPage() {
 
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase shrink-0 ${
-                    selectedArtifact.threat_score >= 40 ? 'bg-red-500 text-white' : 'bg-[#FFE600] text-black'
+                    selectedArtifact.threat_score >= 40 ? 'bg-red-500 text-white' : 'bg-white/10 text-white border border-white/10'
                   }`}
                 >
                   {selectedArtifact.verdict.replace(/_/g, ' ')}
@@ -498,7 +490,7 @@ export function USBFootprintsPage() {
                 <div className="flex items-center justify-between text-neutral-400 pt-1 border-t border-white/[0.04]">
                   <span>SHA-256 Checksum:</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[#FFE600] font-bold">
+                    <span className="text-white font-bold">
                       {selectedArtifact.sha256}
                     </span>
                     <button
@@ -516,7 +508,7 @@ export function USBFootprintsPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-neutral-400 font-bold uppercase text-[11px] flex items-center gap-2">
-                    <Terminal className="w-3.5 h-3.5 text-[#FFE600]" />
+                    <Terminal className="w-3.5 h-3.5 text-white" />
                     <span>RAW FILE CONTENT (WHAT WAS CREATED)</span>
                   </span>
                   <button
@@ -553,7 +545,7 @@ export function USBFootprintsPage() {
               </span>
               <button
                 onClick={() => setSelectedArtifact(null)}
-                className="px-5 py-2 rounded-full font-mono text-xs font-bold bg-[#FFE600] hover:bg-yellow-400 text-black transition-all cursor-pointer shadow-sm"
+                className="px-5 py-2 rounded-full font-mono text-xs font-bold bg-white hover:bg-neutral-200 text-black transition-all cursor-pointer shadow-sm"
               >
                 Close Inspector
               </button>
