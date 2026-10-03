@@ -268,6 +268,27 @@ class USBMonitor:
             if os.getenv("PHANTOM_DEMO_AUTORUN", "true").lower() == "true":
                 self._launch_live_adversary_demo(mount_point, session_id)
 
+            # 5. Autonomous Multi-Layer Forensic DNA & Host Heritage Synthesis
+            try:
+                from backend.core.fingerprint_engine import fingerprint_engine
+                dna_res = fingerprint_engine.extract_forensic_dna(session_id=session_id, mount_point=mount_point, item=item)
+                logger.info(f"🧬 Multi-Layer Forensic DNA synthesized for {name}: {dna_res.get('dna_hash')}")
+                self._broadcast_safe(ws_manager.broadcast_live({
+                    "source": "FORENSIC_DNA_ENGINE",
+                    "event_type": "USB_DNA_SYNTHESIZED",
+                    "severity": "INFO",
+                    "session_id": session_id,
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "data": {
+                        "device_name": name,
+                        "dna_hash": dna_res.get("dna_hash"),
+                        "cluster_family": dna_res.get("cluster_family"),
+                        "genome": dna_res.get("genome")
+                    }
+                }))
+            except Exception as e:
+                logger.error(f"Error synthesizing Forensic DNA on USB insertion: {e}")
+
         elif category == "PERIPHERAL":
             # Peripheral insertion (e.g. mouse dongle, keyboard)
             event_data = {

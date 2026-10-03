@@ -267,13 +267,28 @@ def get_hardware_footprints():
     seen_realpaths = set()
 
     def process_file(filepath: str, origin_type: str, friendly_origin: str):
-        if not os.path.exists(filepath) or os.path.isdir(filepath):
+        if not os.path.exists(filepath):
             return
+        # If it's a forensic directory like System Volume Information, inspect files within it
+        if os.path.isdir(filepath):
+            base_dir = os.path.basename(filepath)
+            if base_dir in ("System Volume Information", ".Spotlight-V100", ".fseventsd", ".Trashes"):
+                try:
+                    for sub in os.listdir(filepath):
+                        sub_path = os.path.join(filepath, sub)
+                        if os.path.isfile(sub_path):
+                            process_file(sub_path, "FORENSIC_DUST", f"Cross-OS Host Dust ({base_dir})")
+                except Exception:
+                    pass
+            return
+
         real_p = os.path.realpath(filepath)
         if real_p in seen_realpaths:
             return
         fname = os.path.basename(filepath)
-        if fname.startswith(".") or fname == "System Volume Information":
+
+        # Ignore noisy OS temporary lock files, but keep forensic dust
+        if fname in (".", "..") or (fname.startswith(".~") or fname.endswith(".tmp")):
             return
 
         seen_realpaths.add(real_p)
@@ -290,6 +305,12 @@ def get_hardware_footprints():
             indicators = []
             verdict = "BENIGN_LOG"
             file_category = "SYSTEM_LOG"
+
+            # Check if this is a forensic host artifact
+            if fname in ("IndexerVolumeGuid", "WPSettings.dat", "Thumbs.db") or fname.startswith(".Spotlight") or fname.startswith(".Trash") or fname == ".DS_Store":
+                verdict = "FORENSIC_HOST_ARTIFACT"
+                file_category = "DIGITAL_DUST"
+                indicators = ["Host Operating System Remnant Fingerprint"]
 
             if "exploit" in fname.lower() or "malware" in fname.lower() or ext in (".sh", ".bat", ".ps1", ".py"):
                 try:

@@ -114,7 +114,17 @@ class AttackSimulator:
 
         # Build correlation graph & extract DNA
         correlation_engine.build_attack_graph(session_id)
-        fp = fingerprint_engine.extract_fingerprint(session_id)
+        meta1 = {
+            "device_name": "USB Rubber Ducky",
+            "vendor_id": "03EB",
+            "product_id": "2401",
+            "serial_number": "DUCKY-8841-A",
+            "vendor_name": "Atmel Corp / Hak5",
+            "pnp_id": "/dev/sdb1",
+            "filesystem": "FAT32",
+            "capacity_gb": 0.512
+        }
+        fp = fingerprint_engine.extract_fingerprint(session_id, device_meta=meta1)
 
         self.is_simulating = False
         return {
@@ -193,16 +203,26 @@ class AttackSimulator:
             await asyncio.sleep(step["delay"])
 
         correlation_engine.build_attack_graph(session_id)
-        fp2 = fingerprint_engine.extract_fingerprint(session_id)
+        meta2 = {
+            "device_name": "BashBunny Mark II",
+            "vendor_id": "1FC9",
+            "product_id": "0083",
+            "serial_number": "BUNNY-67120-X",
+            "vendor_name": "NXP Semiconductors / Hak5",
+            "pnp_id": "/dev/sdc1",
+            "filesystem": "FAT32",
+            "capacity_gb": 1.95
+        }
+        fp2 = fingerprint_engine.extract_fingerprint(session_id, device_meta=meta2)
 
         # Immediate DNA comparison with Stage 1
         comparison = fingerprint_engine.compare_fingerprints("sess_demo_stage1_ducky", session_id)
 
-        # Broadcast DNA comparison match alert
+        # Broadcast DNA comparison match alert with Lineage details
         await ws_manager.broadcast_narrator({
             "session_id": session_id,
             "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-            "text": f"🔥 ATTACK DNA MATCH: Behavioral fingerprint is an {int(comparison['similarity_score']*100)}% match to Session #1 (Rubber Ducky), despite different hardware VID/PID!",
+            "text": f"🧬 FORENSIC LINEAGE MATCH: {int(comparison['similarity_score']*100)}% match to Session #1 (Rubber Ducky)! Despite hardware VID/PID swap, both USBs contain identical preparation dust ({comparison.get('verdict')})",
             "severity": "CRITICAL"
         })
 

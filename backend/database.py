@@ -74,17 +74,22 @@ def init_db():
         )
     """)
 
-    # 4. Fingerprints (Attack DNA)
+    # 4. Fingerprints (Attack DNA & Multi-Layer Forensic Genome)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS fingerprints (
             session_id TEXT PRIMARY KEY,
             dna_hash TEXT NOT NULL,
             cluster_family TEXT NOT NULL,
             tokens_json TEXT NOT NULL,
+            genome_json TEXT,
             created_at TEXT NOT NULL,
             FOREIGN KEY (session_id) REFERENCES sessions(session_id)
         )
     """)
+    try:
+        cursor.execute("ALTER TABLE fingerprints ADD COLUMN genome_json TEXT")
+    except Exception:
+        pass
 
     # 5. Canary Traps (Decoys)
     cursor.execute("""
