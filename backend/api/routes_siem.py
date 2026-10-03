@@ -129,7 +129,8 @@ def format_siem_event(row: Any) -> Dict[str, Any]:
     if process_name:
         raw_parts.append(f"process=\"{process_name}\"")
     if command_line:
-        raw_parts.append(f"cmd=\"{command_line.replace('\"', '\\\"')}\"")
+        escaped_cmd = command_line.replace('"', '\\"')
+        raw_parts.append(f'cmd="{escaped_cmd}"')
     if target_pid:
         raw_parts.append(f"target_pid={target_pid}")
     if mount_point:
