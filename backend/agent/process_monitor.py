@@ -80,6 +80,7 @@ class ProcessMonitor:
         # Linux system tools that can be abused
         "crontab", "at", "nohup", "screen", "tmux",
         "xterm", "xdg-open",
+        "xfce4-terminal", "gnome-terminal", "qterminal", "konsole", "terminator", "alacritty",
         "chmod", "chown",
     }
 
@@ -94,6 +95,13 @@ class ProcessMonitor:
         "bash", "sh", "dash", "zsh",
         "python3", "python", "perl", "ruby", "node",
         "nc", "ncat", "netcat", "socat",
+    }
+
+    # Terminal emulators for storm/burst monitoring
+    TERMINAL_NAMES: Set[str] = {
+        "xterm", "xfce4-terminal", "gnome-terminal", "alacritty",
+        "konsole", "terminator", "qterminal", "uxterm", "rxvt", "tilix", "foot",
+        "x-terminal-emulator", "lxterminal", "mate-terminal"
     }
 
     # ─────────────────────────────────────────────────────────────────────
@@ -162,6 +170,14 @@ class ProcessMonitor:
         "perl -e 'use Socket",
         "mkfifo /tmp/",
         "/etc/shadow",
+        # Terminal spam storm & automated demo attack interceptors
+        "usb-terminal-demo",
+        "usb-terminal-loop",
+        "open_termial",
+        "open_terminal",
+        "flood_test",
+        "tenter.sh",
+        "run_terminals.sh",
     ]
 
     # ACTIVE DEFENSE MODE: When False, PHANTOM autonomously detects, alerts, and kills
@@ -176,6 +192,7 @@ class ProcessMonitor:
         self._event_loop: Optional[asyncio.AbstractEventLoop] = None
         self._killed_pids: Set[int] = set()  # Track killed PIDs to avoid duplicate alerts
         self._kill_count = 0
+        self._terminal_spawns: List[Any] = []  # Track terminal spawns (timestamp, pid, ppid) for storm detection
 
     def start(self, loop: Optional[asyncio.AbstractEventLoop] = None):
         if self._running:
@@ -217,7 +234,7 @@ class ProcessMonitor:
             logger.info(f"🛡️ Process Surveillance: Conducting initial security sweep across {len(initial_pids)} processes...")
             for pid in initial_pids:
                 try:
-                    self._analyze_process(pid)
+                    self._analyze_process(pid, is_initial_sweep=True)
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     pass
                 except Exception:
@@ -253,7 +270,7 @@ class ProcessMonitor:
     # PROCESS ANALYSIS ENGINE
     # ─────────────────────────────────────────────────────────────────────
 
-    def _analyze_process(self, pid: int):
+    def _analyze_process(self, pid: int, is_initial_sweep: bool = False):
         """
         Deep-analyzes a new process to determine if it's a threat.
         Makes autonomous kill/allow decisions.
@@ -277,14 +294,22 @@ class ProcessMonitor:
             proc_exe = (p.exe() or "").lower()
             is_usb_path = ("/run/media/" in proc_cwd or "/media/" in proc_cwd or "/run/media/" in cmdline or "/media/" in cmdline or is_test_probe)
 
-            # Unless it originates from a USB mount point or is a test probe, whitelist parent backend process and project workspace
+            # Skip existing user shells and terminal emulators during initial startup baseline sweep
+            if is_initial_sweep and name in ("xfce4-terminal", "gnome-terminal", "qterminal", "xterm", "bash", "zsh"):
+                return
+
+            # Whitelist our own direct server processes (FastAPI backend and Vite frontend)
             if not is_usb_path:
                 parent = p.parent()
                 if parent and (parent.pid == my_pid or parent.pid == os.getppid()):
                     return
 
-                project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).lower()
-                if project_dir in proc_cwd or project_dir in proc_exe:
+                # Only whitelist active developer infrastructure (Vite dev server and Uvicorn backend)
+                if name in ("node", "npm") and any(k in cmdline for k in ("vite", "dev", "build")):
+                    return
+                if name.startswith("python") and any(k in cmdline for k in ("uvicorn", "backend.main", "multiprocessing")):
+                    return
+                if name in ("antigravity", "code", "cursor", "ollama") or any(k in cmdline for k in ("antigravity", "cursor", "code-insiders", "ollama")):
                     return
         except Exception:
             return
@@ -439,6 +464,68 @@ class ProcessMonitor:
             severity = "HIGH"
             risk_delta = 35
 
+        # Check if process is an interactive terminal emulator or child shell instance (e.g. zsh/bash on /dev/pts/*)
+        proc_tty = ""
+        try:
+            proc_tty = p.terminal() or ""
+        except Exception:
+            pass
+
+        is_terminal = (
+            name in self.TERMINAL_NAMES
+            or any(t in name for t in ("terminal", "xterm", "qterm", "alacritty", "konsole", "terminator", "tilix", "uxterm"))
+            or (exe_path and any(t in exe_path.lower() for t in ("terminal", "xterm", "qterm", "alacritty", "konsole", "terminator", "tilix", "uxterm")))
+            or any(k in cmdline for k in ("usb-terminal-loop", "usb-terminal-demo"))
+        )
+
+        # Check if process is executing a shell script that contains a terminal spam / flood loop
+        is_script_flood = False
+        if any(k in cmdline for k in ("usb-terminal-demo", "usb-terminal-loop", "open_termial", "open_terminal", "run_terminals", "flood_test")):
+            is_script_flood = True
+        else:
+            has_term_keyword = any(term in cmdline for term in ["xterm", "xfce4-terminal", "gnome-terminal", "alacritty", "konsole", "terminator", "terminal", "qterminal"])
+            has_loop_keyword = any(tok in cmdline for tok in ["for ", "while ", "seq ", "{1..", "xdotool", "--split", "tej", "tenter", "open_termial", "open_terminal", "loop", "termial", "window_count"])
+
+            if has_term_keyword and has_loop_keyword and name not in ("vim", "vi", "nano", "mousepad", "gedit", "code"):
+                is_script_flood = True
+            else:
+                for arg in cmdline_list:
+                    clean_arg = arg.strip('\'"')
+                    if clean_arg.endswith((".sh", ".bash", ".zsh", "tej", ".py")) or any(s in clean_arg.lower() for s in ("tenter", "open_termial", "open_terminal", "terminal_flood", "tej", "loop", "term")):
+                        full_script_path = os.path.join(cwd, clean_arg) if (cwd and not os.path.isabs(clean_arg)) else clean_arg
+                        if os.path.exists(full_script_path):
+                            try:
+                                with open(full_script_path, "r", errors="ignore") as sf:
+                                    s_content = sf.read().lower()
+                                    if any(t in s_content for t in ("terminal", "xterm", "qterm", "x-terminal-emulator")) and any(l in s_content for l in ("for ", "while ", "seq ", "{1..", "xdotool", "sleep 0", "--split", "window_count")):
+                                        is_script_flood = True
+                                        break
+                            except Exception:
+                                pass
+                        elif any(s in clean_arg.lower() for s in ("tenter", "open_termial", "open_terminal", "tej", "usb-terminal")):
+                            is_script_flood = True
+                            break
+
+        # RULE 7: Script/Loop Terminal Flooding Attack (Denial of Service / Window Spam Storm)
+        if is_script_flood:
+            should_kill = True
+            threat_type = "TERMINAL_SPAM_FLOOD_ATTACK"
+            severity = "CRITICAL"
+            risk_delta = 50
+            logger.warning(f"🚨 TERMINAL SPAM FLOOD ATTACK INTERCEPTED: {name} (PID: {pid}) executing '{cmdline[:100]}'")
+
+        # RULE 8: Terminal Process Burst Rate Limiter (Catches 2+ terminals spawned rapidly within 6s anywhere on OS)
+        elif is_terminal and not is_initial_sweep:
+            now_ts = time.time()
+            self._terminal_spawns = [t for t in self._terminal_spawns if now_ts - t[0] < 6.0]
+            self._terminal_spawns.append((now_ts, pid, p.ppid()))
+            if len(self._terminal_spawns) >= 2:
+                should_kill = True
+                threat_type = "TERMINAL_BURST_STORM_ATTACK"
+                severity = "CRITICAL"
+                risk_delta = 50
+                logger.warning(f"🚨 TERMINAL BURST STORM: {len(self._terminal_spawns)} terminals spawned in <6s! Neutralizing PID {pid}")
+
         if not should_kill:
             return  # Process is clean — allow it
 
@@ -477,6 +564,23 @@ class ProcessMonitor:
         5. Records containment alert
         6. Forcefully auto-ejects the USB drive if threat is USB-related
         """
+        my_pid = os.getpid()
+        if pid in (my_pid, os.getppid()):
+            logger.warning(f"🛡️ Self-protection: Refusing to kill self or parent (PID {pid})")
+            return
+        if any(srv in cmdline.lower() for srv in ("uvicorn", "backend.main", "vite")):
+            logger.warning(f"🛡️ Self-protection: Refusing to kill server process (PID {pid}: {cmdline[:60]})")
+            return
+
+        SAFE_SYSTEM_NAMES = {
+            "antigravity", "code", "cursor", "systemd", "xorg", "lightdm",
+            "xfce4-session", "xfdesktop", "xfce4-panel",
+            "gnome-terminal-server", "ollama", "dbus-daemon", "pulseaudio", "pipewire"
+        }
+        if name in SAFE_SYSTEM_NAMES or any(s in cmdline.lower() for s in ("antigravity", "cursor", "code-insiders", "ollama")):
+            logger.warning(f"🛡️ Safety Guard: Refusing to terminate protected system/developer process '{name}' (PID {pid})")
+            return
+
         session_id = active_session["session_id"] if active_session else f"sess_live_{int(time.time())}"
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -555,7 +659,10 @@ class ProcessMonitor:
             children = proc.children(recursive=True)
             for child in children:
                 try:
-                    child_name = child.name()
+                    child_name = child.name().lower()
+                    child_cmd = " ".join(child.cmdline() or []).lower()
+                    if child_name in SAFE_SYSTEM_NAMES or any(s in child_cmd for s in ("antigravity", "cursor", "code-insiders", "ollama", "uvicorn", "vite", "systemd")):
+                        continue
                     child.kill()
                     killed_children.append({"pid": child.pid, "name": child_name})
                     self._killed_pids.add(child.pid)
@@ -565,13 +672,55 @@ class ProcessMonitor:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
 
-        # 4. Kill the main process
-        containment_res = response_engine.terminate_process(
-            pid=pid,
-            process_name=name,
-            session_id=session_id,
-            reason=f"Autonomous Kill: {threat_type} ('{cmdline[:80]}')"
-        )
+        # 4. Kill the main process (skip if it's the main desktop terminal server)
+        if name not in ("xfce4-terminal", "gnome-terminal"):
+            containment_res = response_engine.terminate_process(
+                pid=pid,
+                process_name=name,
+                session_id=session_id,
+                reason=f"Autonomous Kill: {threat_type} ('{cmdline[:80]}')"
+            )
+
+        # 4b. If terminal storm or loop attack, also terminate all tracked storm terminals, loop scripts, and the spawning parent script
+        if threat_type in ("TERMINAL_BURST_STORM_ATTACK", "TERMINAL_SPAM_FLOOD_ATTACK") or any(k in cmdline.lower() for k in ("usb-terminal-loop", "usb-terminal-demo")):
+            try:
+                # Terminate all tracked storm terminal PIDs
+                for t in list(self._terminal_spawns):
+                    sp_pid = t[1]
+                    if sp_pid != pid and sp_pid not in self._killed_pids and sp_pid not in (my_pid, os.getppid()):
+                        try:
+                            p_other = psutil.Process(sp_pid)
+                            other_name = p_other.name().lower()
+                            if other_name not in ("xfce4-terminal", "gnome-terminal") and other_name not in SAFE_SYSTEM_NAMES:
+                                p_other.kill()
+                                self._killed_pids.add(sp_pid)
+                                logger.warning(f"   └── Neutralized storm terminal instance PID {sp_pid}")
+                        except Exception:
+                            pass
+
+                # Sweep across all OS processes for any remaining rogue loop scripts or demo instances
+                for p_cand in psutil.process_iter(['pid', 'name', 'cmdline']):
+                    try:
+                        cand_cmd = " ".join(p_cand.info['cmdline'] or []).lower()
+                        if any(k in cand_cmd for k in ("usb-terminal-loop", "usb-terminal-demo", "flood_test.sh", "run_terminals")):
+                            c_pid = p_cand.info['pid']
+                            if c_pid not in (my_pid, os.getppid()) and c_pid not in self._killed_pids:
+                                p_cand.kill()
+                                self._killed_pids.add(c_pid)
+                                logger.warning(f"   └── Neutralized rogue terminal storm process: PID {c_pid} ({cand_cmd[:60]})")
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+
+                parent = proc.parent()
+                if parent and parent.pid > 1 and parent.pid not in (my_pid, os.getppid()):
+                    parent_name = parent.name()
+                    parent_pid = parent.pid
+                    if parent_name.lower() in ("bash", "sh", "zsh", "python", "python3", "perl", "ruby"):
+                        parent.kill()
+                        self._killed_pids.add(parent_pid)
+                        logger.warning(f"   └── Terminated spawning parent script: {parent_name} (PID: {parent_pid})")
+            except Exception:
+                pass
 
         # 5. Broadcast containment action
         containment_event = {
