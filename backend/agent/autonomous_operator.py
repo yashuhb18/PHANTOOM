@@ -22,6 +22,7 @@ import logging
 import datetime
 import subprocess
 import difflib
+import shlex
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -66,9 +67,11 @@ class AutonomousOperatorAgent:
         """
         command = command.strip()
 
-        # Auto-quote unquoted paths containing spaces (e.g. PHANTOM USB)
+        # Auto-quote unquoted paths containing spaces (e.g. PHANTOM USB, KIOXIA USB)
         if "PHANTOM USB" in command and '"PHANTOM USB"' not in command and "'PHANTOM USB'" not in command:
             command = command.replace("PHANTOM USB", '"PHANTOM USB"')
+        if "KIOXIA USB" in command and '"KIOXIA USB"' not in command and "'KIOXIA USB'" not in command:
+            command = command.replace("KIOXIA USB", '"KIOXIA USB"')
 
         # Auto-resolve ellipsis in /run/media/... or /media/... to real USB path
         if "/run/media/.../" in command:
@@ -125,6 +128,33 @@ class AutonomousOperatorAgent:
             elapsed_ms = round((time.time() - t0) * 1000, 2)
             stdout = proc.stdout[:3000]
             stderr = proc.stderr[:3000]
+
+            # Auto-elevation fallback if permission denied
+            if proc.returncode != 0 and any(err in stderr for err in ["Permission denied", "Operation not permitted", "need root", "must be root"]) and "0529" not in command:
+                try:
+                    elevated_cmd = f"echo '0529' | sudo -S bash -c {shlex.quote(command)}"
+                    logger.info(f"Auto-elevating command with sudo after permission error: {command}")
+                    proc_elevated = subprocess.run(
+                        elevated_cmd,
+                        shell=True,
+                        cwd=str(target_cwd),
+                        capture_output=True,
+                        text=True,
+                        timeout=timeout
+                    )
+                    return {
+                        "tool": "RUN_COMMAND",
+                        "success": (proc_elevated.returncode == 0),
+                        "command": command,
+                        "elevated": True,
+                        "cwd": str(target_cwd),
+                        "returncode": proc_elevated.returncode,
+                        "stdout": proc_elevated.stdout[:3000] or "(no stdout)",
+                        "stderr": proc_elevated.stderr[:3000] or "",
+                        "elapsed_ms": round((time.time() - t0) * 1000, 2)
+                    }
+                except Exception:
+                    pass
 
             return {
                 "tool": "RUN_COMMAND",
@@ -348,6 +378,9 @@ class AutonomousOperatorAgent:
         Reads code or text from a file with line numbers for inspection.
         """
         clean_path = filepath.strip()
+        if not clean_path or clean_path == ".":
+            clean_path = str(self.workspace_root)
+
         if "/run/media/.../" in clean_path:
             clean_path = clean_path.replace("/run/media/.../", "/run/media/yashz/")
         elif "/media/.../" in clean_path:
@@ -360,16 +393,46 @@ class AutonomousOperatorAgent:
 
         target = Path(clean_path)
         if not target.is_absolute():
-            target = (self.workspace_root / target).resolve()
+            workspace_target = (self.workspace_root / target).resolve()
+            usb_target = Path("/run/media/yashz/KIOXIA_USB") / target
+            if not workspace_target.exists() and usb_target.exists():
+                target = usb_target.resolve()
+            else:
+                target = workspace_target
         else:
             target = target.resolve()
 
-        if not target.exists() or not target.is_file():
+        if not target.exists():
+            # Check active USB drive as fallback
+            usb_fallback = Path("/run/media/yashz/KIOXIA_USB") / target.name
+            if usb_fallback.exists():
+                target = usb_fallback.resolve()
+            else:
+                return {
+                    "tool": "READ_FILE",
+                    "success": False,
+                    "filepath": str(target),
+                    "error": f"Path does not exist: {target}"
+                }
+
+        # DIRECTORY AUTO-HANDLING: If target is a directory, inspect its contents seamlessly
+        if target.is_dir():
+            list_res = self.tool_list_files(directory=str(target), pattern="*")
+            items = list_res.get("items", [])
+            item_lines = [("📁 " if it["is_dir"] else "📄 ") + it["name"] + (f" ({it['size_bytes']} bytes)" if not it["is_dir"] else "") for it in items]
+            preview = "\n".join(item_lines) if item_lines else "(empty directory)"
             return {
                 "tool": "READ_FILE",
-                "success": False,
+                "success": True,
                 "filepath": str(target),
-                "error": f"File does not exist: {target}"
+                "filename": target.name,
+                "rel_path": str(target),
+                "total_lines": len(items),
+                "showing_lines": f"1-{len(items)}",
+                "content": f"Directory listing for {target}:\n\n{preview}",
+                "message": f"Target is a directory with {len(items)} items. Listed contents.",
+                "items": items,
+                "is_directory": True
             }
 
         try:
@@ -401,6 +464,38 @@ class AutonomousOperatorAgent:
                 "content": "".join(numbered_lines),
                 "message": f"Read lines {start_line}-{end_idx} of {target.name}"
             }
+        except PermissionError:
+            try:
+                res = subprocess.run(
+                    f"echo '0529' | sudo -S cat {shlex.quote(str(target))}",
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                lines = res.stdout.splitlines(keepends=True)
+                total_lines = len(lines)
+                start_idx = max(0, start_line - 1)
+                end_idx = min(total_lines, end_line)
+                numbered_lines = [f"{i + 1:4d} | {lines[i]}" for i in range(start_idx, end_idx)]
+                return {
+                    "tool": "READ_FILE",
+                    "success": True,
+                    "filepath": str(target),
+                    "filename": target.name,
+                    "rel_path": str(target),
+                    "total_lines": total_lines,
+                    "showing_lines": f"{start_line}-{end_idx}",
+                    "content": "".join(numbered_lines),
+                    "message": f"Read lines {start_line}-{end_idx} of {target.name} (with administrative elevation)"
+                }
+            except Exception as e:
+                return {
+                    "tool": "READ_FILE",
+                    "success": False,
+                    "filepath": str(target),
+                    "error": f"Failed to read file: {e}"
+                }
         except Exception as e:
             return {
                 "tool": "READ_FILE",
@@ -588,8 +683,21 @@ class AutonomousOperatorAgent:
 
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
-            with open(target, "w", encoding="utf-8") as f:
-                f.write(content)
+            try:
+                with open(target, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except PermissionError:
+                # Elevate with sudo mkdir and sudo tee
+                subprocess.run(f"echo '0529' | sudo -S mkdir -p {shlex.quote(str(target.parent))}", shell=True, check=True)
+                p = subprocess.run(
+                    f"echo '0529' | sudo -S tee {shlex.quote(str(target))} > /dev/null",
+                    input=content,
+                    text=True,
+                    shell=True,
+                    capture_output=True
+                )
+                if p.returncode != 0:
+                    raise RuntimeError(p.stderr or "sudo tee failed")
 
             lines_added = len(content.splitlines())
             lines_removed = len(old_content.splitlines()) if old_content else 0
@@ -632,7 +740,10 @@ class AutonomousOperatorAgent:
         """
         Lists files, sizes, and timestamps inside a directory.
         """
-        clean_dir = directory.strip()
+        clean_dir = directory.strip() if directory else "."
+        if not clean_dir or clean_dir == ".":
+            clean_dir = str(self.workspace_root)
+
         if "/run/media/.../" in clean_dir:
             clean_dir = clean_dir.replace("/run/media/.../", "/run/media/yashz/")
         elif "/media/.../" in clean_dir:
@@ -645,17 +756,30 @@ class AutonomousOperatorAgent:
 
         target = Path(clean_dir)
         if not target.is_absolute():
-            target = (self.workspace_root / target).resolve()
+            workspace_target = (self.workspace_root / target).resolve()
+            usb_target = Path("/run/media/yashz/KIOXIA_USB") / target
+            if not workspace_target.exists() and usb_target.exists():
+                target = usb_target.resolve()
+            else:
+                target = workspace_target
         else:
             target = target.resolve()
 
-        if not target.exists() or not target.is_dir():
-            return {
-                "tool": "LIST_FILES",
-                "success": False,
-                "directory": str(target),
-                "message": f"Directory does not exist: {target}"
-            }
+        if not target.exists():
+            usb_fallback = Path("/run/media/yashz/KIOXIA_USB") / target.name
+            if usb_fallback.exists():
+                target = usb_fallback.resolve()
+            else:
+                return {
+                    "tool": "LIST_FILES",
+                    "success": False,
+                    "directory": str(target),
+                    "message": f"Path does not exist: {target}"
+                }
+
+        # If user/LLM pointed LIST_FILES to a file, read it instead of failing
+        if target.is_file():
+            return self.tool_read_file(filepath=str(target))
 
         try:
             items = []
@@ -673,13 +797,38 @@ class AutonomousOperatorAgent:
                     "size_bytes": p.stat().st_size if p.is_file() else 0
                 })
 
+            item_names = [("📁 " if it["is_dir"] else "📄 ") + it["name"] + (f" ({it['size_bytes']} bytes)" if not it["is_dir"] else "") for it in items]
+            summary_preview = ", ".join([it["name"] for it in items[:10]])
+            if len(items) > 10:
+                summary_preview += f" ... (+{len(items)-10} more)"
+
             return {
                 "tool": "LIST_FILES",
                 "success": True,
                 "directory": str(target),
                 "total_items": len(items),
-                "items": items
+                "items": items,
+                "message": f"Listed {len(items)} items in {target.name or str(target)}: {summary_preview if items else '(empty folder)'}"
             }
+        except PermissionError:
+            try:
+                cmd = f"echo '0529' | sudo -S ls -la {shlex.quote(str(target))}"
+                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                return {
+                    "tool": "LIST_FILES",
+                    "success": True,
+                    "directory": str(target),
+                    "message": f"Listed {target} with administrative elevation.",
+                    "raw_output": res.stdout,
+                    "items": []
+                }
+            except Exception as e:
+                return {
+                    "tool": "LIST_FILES",
+                    "success": False,
+                    "directory": str(target),
+                    "message": f"Listing error: {e}"
+                }
         except Exception as e:
             return {
                 "tool": "LIST_FILES",
@@ -781,52 +930,122 @@ class AutonomousOperatorAgent:
     # DISPATCHER
     # =========================================================================
     def execute_tool(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Executes a tool by name and returns observation dictionary."""
+        """Executes a tool by name with resilient argument extraction and synonym mapping."""
         name = tool_name.upper().strip()
+
+        # Tool aliases / synonyms
+        SYNONYMS = {
+            "VIEW_FILE": "READ_FILE",
+            "CAT": "READ_FILE",
+            "READ": "READ_FILE",
+            "OPEN_FILE": "READ_FILE",
+            "VIEW": "READ_FILE",
+            "SHOW_FILE": "READ_FILE",
+            "LS": "LIST_FILES",
+            "DIR": "LIST_FILES",
+            "LIST": "LIST_FILES",
+            "LIST_DIR": "LIST_FILES",
+            "LIST_DIRECTORY": "LIST_FILES",
+            "VIEW_DIRECTORY": "LIST_FILES",
+            "VIEW_DIR": "LIST_FILES",
+            "EXEC": "RUN_COMMAND",
+            "EXECUTE": "RUN_COMMAND",
+            "BASH": "RUN_COMMAND",
+            "SHELL": "RUN_COMMAND",
+            "TERMINAL": "RUN_COMMAND",
+            "CMD": "RUN_COMMAND",
+            "COMMAND": "RUN_COMMAND",
+            "RUN": "RUN_COMMAND",
+            "CREATE_FILE": "WRITE_FILE",
+            "NEW_FILE": "WRITE_FILE",
+            "MAKE_FILE": "WRITE_FILE",
+            "TOUCH": "WRITE_FILE",
+            "SAVE_FILE": "WRITE_FILE",
+            "MODIFY_FILE": "EDIT_CODE",
+            "UPDATE_CODE": "EDIT_CODE",
+            "UPDATE_FILE": "EDIT_CODE",
+            "PATCH_FILE": "EDIT_CODE",
+            "PATCH": "EDIT_CODE",
+            "DELETE_FILE": "KILL_FILE",
+            "REMOVE_FILE": "KILL_FILE",
+            "DEL_FILE": "KILL_FILE",
+            "RM": "KILL_FILE",
+            "DELETE": "KILL_FILE",
+            "KILL": "KILL_PROCESS",
+            "TERMINATE_PROCESS": "KILL_PROCESS",
+            "STOP_PROCESS": "KILL_PROCESS",
+            "KILL_PROC": "KILL_PROCESS",
+            "PS": "LIST_PROCESSES",
+            "PROCESSES": "LIST_PROCESSES",
+            "TOP": "LIST_PROCESSES",
+            "FIND_USB": "DETECT_USB",
+            "USB": "DETECT_USB",
+            "LIST_USB": "DETECT_USB",
+            "CHECK_USB": "DETECT_USB"
+        }
+        name = SYNONYMS.get(name, name)
+
         if name == "RUN_COMMAND":
+            cmd = args.get("command") or args.get("cmd") or args.get("script") or args.get("code") or ""
             return self.tool_run_command(
-                command=args.get("command", ""),
-                cwd=args.get("cwd"),
+                command=cmd,
+                cwd=args.get("cwd") or args.get("directory") or args.get("dir"),
                 timeout=args.get("timeout", 30)
             )
         elif name == "KILL_PROCESS":
+            raw_pid = args.get("pid") if args.get("pid") is not None else (args.get("process_id") if args.get("process_id") is not None else args.get("id"))
+            pid_val = None
+            if raw_pid is not None:
+                try:
+                    pid_val = int(raw_pid)
+                except Exception:
+                    pid_val = None
+            pat = args.get("name_pattern") or args.get("pattern") or args.get("name") or args.get("process_name") or args.get("filter") or args.get("proc")
             return self.tool_kill_process(
-                pid=args.get("pid"),
-                name_pattern=args.get("name_pattern"),
+                pid=pid_val,
+                name_pattern=pat,
                 signal=args.get("signal", "SIGKILL")
             )
         elif name == "KILL_FILE":
+            fp = args.get("filepath") or args.get("file_path") or args.get("path") or args.get("file") or args.get("target") or args.get("directory") or ""
             return self.tool_kill_file(
-                filepath=args.get("filepath", ""),
+                filepath=fp,
                 permanent=args.get("permanent", False),
                 quarantine=args.get("quarantine", True)
             )
         elif name == "READ_FILE":
+            fp = args.get("filepath") or args.get("file_path") or args.get("path") or args.get("directory") or args.get("dir") or args.get("file") or args.get("target") or args.get("filename") or ""
             return self.tool_read_file(
-                filepath=args.get("filepath", ""),
+                filepath=fp,
                 start_line=args.get("start_line", 1),
                 end_line=args.get("end_line", 250)
             )
         elif name == "EDIT_CODE":
+            fp = args.get("filepath") or args.get("file_path") or args.get("path") or args.get("file") or args.get("target") or ""
+            old = args.get("old_code") or args.get("target") or args.get("search") or args.get("original") or ""
+            new = args.get("new_code") or args.get("replacement") or args.get("replace") or args.get("code") or ""
             return self.tool_edit_code(
-                filepath=args.get("filepath", ""),
-                old_code=args.get("old_code", ""),
-                new_code=args.get("new_code", "")
+                filepath=fp,
+                old_code=old,
+                new_code=new
             )
         elif name == "WRITE_FILE":
+            fp = args.get("filepath") or args.get("file_path") or args.get("path") or args.get("file") or args.get("target") or ""
+            content = args.get("content") or args.get("text") or args.get("code") or args.get("data") or args.get("body") or ""
             return self.tool_write_file(
-                filepath=args.get("filepath", ""),
-                content=args.get("content", "")
+                filepath=fp,
+                content=content
             )
         elif name == "LIST_FILES":
+            directory = args.get("directory") or args.get("dir") or args.get("path") or args.get("filepath") or args.get("folder") or args.get("target") or "."
             return self.tool_list_files(
-                directory=args.get("directory", "."),
+                directory=directory,
                 pattern=args.get("pattern", "*"),
                 recursive=args.get("recursive", False)
             )
         elif name == "LIST_PROCESSES":
             return self.tool_list_processes(
-                filter_kw=args.get("filter_kw")
+                filter_kw=args.get("filter_kw") or args.get("filter") or args.get("query") or args.get("keyword") or args.get("name")
             )
         elif name == "DETECT_USB":
             return self.tool_detect_usb()
@@ -889,21 +1108,24 @@ class AutonomousOperatorAgent:
 
         # Available Tools Catalog
         tools_catalog = (
-            "You are PHANTOM Autonomous Operator Agent running directly on Kali Linux with OS command authority.\n"
-            "You can run terminal commands, kill rogue processes/processors, delete/quarantine files, and edit code inside the folder.\n\n"
+            "You are PHANTOM Autonomous Operator Agent running directly on Kali Linux with FULL OS AUTHORITY.\n"
+            "You can execute terminal commands, kill rogue processes/processors, delete/quarantine files, inspect directories, and edit code.\n"
+            "You have complete administrative root/sudo privileges when needed.\n\n"
             "### AVAILABLE TOOLS:\n"
             "1. RUN_COMMAND: {'command': 'bash command string', 'cwd': 'optional dir path'}\n"
             "2. KILL_PROCESS: {'pid': integer_pid, 'name_pattern': 'string pattern to match'}\n"
             "3. KILL_FILE: {'filepath': 'path to file', 'permanent': false, 'quarantine': true}\n"
-            "4. READ_FILE: {'filepath': 'path to file', 'start_line': 1, 'end_line': 100}\n"
+            "4. READ_FILE: {'filepath': 'path to file or directory', 'start_line': 1, 'end_line': 100}\n"
             "5. EDIT_CODE: {'filepath': 'path to file', 'old_code': 'exact string to replace', 'new_code': 'replacement string'}\n"
             "6. WRITE_FILE: {'filepath': 'path to file', 'content': 'full file content'}\n"
             "7. LIST_FILES: {'directory': 'path or .', 'pattern': '*'}\n"
             "8. LIST_PROCESSES: {'filter_kw': 'optional search keyword'}\n"
             "9. DETECT_USB: {}\n"
             "10. FINISH: {'summary': 'Comprehensive summary of what was accomplished and current system state'}\n\n"
-            "### CRITICAL RULES:\n"
-            "- To detect or work with USB drives, first call DETECT_USB to discover connected flash drives and their mount points (e.g. /run/media/yashz/KIOXIA_USB). Then use WRITE_FILE, READ_FILE, or LIST_FILES inside that mount path.\n"
+            "### CRITICAL OPERATING RULES:\n"
+            "- YOU HAVE COMPLETE UNRESTRICTED ACCESS: File reading, listing, creation, and command execution will automatically escalate permissions if needed.\n"
+            "- To list or see files in any directory or USB mount, use LIST_FILES or READ_FILE with the path (e.g. {'directory': '/run/media/yashz/KIOXIA_USB'}). Both tools will inspect the folder.\n"
+            "- To detect or work with USB drives, call DETECT_USB to discover connected flash drives and mount points, or use the active USB mount points provided in context.\n"
             "- Always wrap paths that have spaces (e.g. 'PHANTOM USB' or 'KIOXIA USB') in double quotes in bash commands.\n"
             "- If the user's input is a greeting or general question, DO NOT run bash commands like 'echo hi'. Return action: 'FINISH' with your helpful response in 'summary'.\n"
             "- Only use RUN_COMMAND, KILL_PROCESS, KILL_FILE, or EDIT_CODE when an actual OS action, process kill, file removal, or code editing task is requested.\n\n"

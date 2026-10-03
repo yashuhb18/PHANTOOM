@@ -671,7 +671,8 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                               <span className="text-[#FDE047] font-bold">
                                 {m.currentTool.action === 'EDIT_CODE' ? `Editing ${m.currentTool.args?.filepath || 'file'}...` :
                                  m.currentTool.action === 'WRITE_FILE' ? `Writing ${m.currentTool.args?.filepath || 'file'}...` :
-                                 m.currentTool.action === 'READ_FILE' ? `Viewing ${m.currentTool.args?.filepath || 'file'}...` :
+                                 m.currentTool.action === 'READ_FILE' ? `Viewing ${m.currentTool.args?.filepath || m.currentTool.args?.directory || 'file'}...` :
+                                 m.currentTool.action === 'LIST_FILES' ? `Listing ${m.currentTool.args?.directory || '.'}...` :
                                  m.currentTool.action === 'RUN_COMMAND' ? `Executing: ${m.currentTool.args?.command || 'command'}...` :
                                  m.currentTool.action === 'KILL_PROCESS' ? `Terminating process PID ${m.currentTool.args?.pid || 'target'}...` :
                                  m.currentTool.action === 'KILL_FILE' ? `Deleting file ${m.currentTool.args?.filepath || 'file'}...` :
@@ -714,7 +715,9 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                                       <span className="font-bold text-white">
                                         {st.action === 'EDIT_CODE' ? `Editing ${res.rel_path || res.filename || st.args?.filepath}` :
                                          st.action === 'WRITE_FILE' ? `Writing ${res.rel_path || res.filename || st.args?.filepath}` :
-                                         st.action === 'READ_FILE' ? `Viewing ${res.rel_path || res.filename || st.args?.filepath}` :
+                                         st.action === 'READ_FILE' ? (res.is_directory ? `Inspecting ${res.filename || st.args?.filepath || 'directory'}` : `Viewing ${res.rel_path || res.filename || st.args?.filepath}`) :
+                                         st.action === 'LIST_FILES' ? `Listing ${res.directory || st.args?.directory || '.'}` :
+                                         st.action === 'LIST_PROCESSES' ? `Listing processes` :
                                          st.action === 'RUN_COMMAND' ? `Running command` :
                                          st.action === 'KILL_PROCESS' ? `Terminating process` :
                                          st.action === 'KILL_FILE' ? `Deleting file` :
@@ -801,6 +804,29 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                                       <pre className="p-3 rounded-lg bg-black/80 border border-white/[0.06] text-neutral-300 font-mono text-[10px] overflow-x-auto whitespace-pre-wrap max-h-48 leading-snug">
                                         {res.content}
                                       </pre>
+                                    )}
+
+                                    {/* Directory File Explorer Listing */}
+                                    {res.items && res.items.length > 0 && (
+                                      <div className="p-2.5 rounded-lg bg-black/80 border border-white/10 font-mono text-[11px] max-h-48 overflow-y-auto space-y-1">
+                                        <div className="text-neutral-400 text-[10px] pb-1 border-b border-white/[0.06] flex items-center justify-between">
+                                          <span>Folder: <strong className="text-[#FDE047]">{res.directory || res.filepath || st.args?.directory || '.'}</strong></span>
+                                          <span className="text-neutral-500">{res.total_items || res.items.length} items</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-1 pt-1">
+                                          {res.items.map((item, idx) => (
+                                            <div key={idx} className="flex items-center justify-between text-neutral-300 py-0.5 px-1.5 rounded hover:bg-white/[0.04]">
+                                              <span className="flex items-center gap-1.5 truncate">
+                                                <span>{item.is_dir ? '📁' : '📄'}</span>
+                                                <span className={item.is_dir ? 'text-[#FDE047] font-semibold' : 'text-neutral-200'}>{item.name}</span>
+                                              </span>
+                                              {!item.is_dir && (
+                                                <span className="text-neutral-500 text-[10px] shrink-0">{item.size_bytes} B</span>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
                                     )}
 
                                     {/* USB Detection Output */}
