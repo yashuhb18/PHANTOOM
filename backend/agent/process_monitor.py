@@ -311,7 +311,7 @@ class ProcessMonitor:
                 threat_type = "ROGUE_HIGH_CPU_CRYPTOMINER"
                 severity = "CRITICAL"
                 risk_delta = 50
-                logger.warning(f"🚨 ROGUE HIGH-CPU MALWARE IDENTIFIED: {name} (PID: {pid}). Allowing 5.5s demonstration grace period before autonomous containment...")
+                logger.warning(f"🚨 ROGUE HIGH-CPU MALWARE DETECTED: {name} (PID: {pid}). INSTANT AUTONOMOUS KILL ENGAGED — zero tolerance, no grace period.")
 
                 active_session = session_manager.get_active_session()
                 session_id = active_session["session_id"] if active_session else f"sess_live_{int(time.time())}"
@@ -328,38 +328,30 @@ class ProcessMonitor:
                         "command_line": cmdline[:300],
                         "threat_type": threat_type,
                         "anomaly": "MULTI_CORE_PROCESSOR_BURST",
-                        "status": "BEHAVIORAL_SURVEILLANCE_ACTIVE",
-                        "containment_countdown_sec": 5.5
+                        "status": "INSTANT_KILL_ENGAGED",
+                        "containment_countdown_sec": 0
                     }
                 }
                 self._broadcast_safe(ws_manager.broadcast_live(alert_event))
                 self._broadcast_safe(ws_manager.broadcast_narrator({
                     "session_id": session_id,
-                    "narration": f"⚠️ ROGUE MALWARE IDENTIFIED: '{name}' (PID {pid}) detected executing high-CPU cryptographic crunching and anomalous UDP exfiltration. Autonomous hunter-killer scheduled for surgical severance in 5.5s.",
+                    "narration": f"🔴 INSTANT KILL: '{name}' (PID {pid}) — rogue high-CPU cryptominer detected. PHANTOM executed immediate autonomous containment with zero grace period.",
                     "timestamp": now
                 }))
 
-                def delayed_kill():
-                    time.sleep(5.5)
-                    try:
-                        if psutil.pid_exists(pid):
-                            proc_to_kill = psutil.Process(pid)
-                            self._execute_containment(
-                                proc=proc_to_kill,
-                                pid=pid,
-                                name=name,
-                                cmdline=cmdline,
-                                threat_type=threat_type,
-                                severity=severity,
-                                risk_delta=risk_delta,
-                                is_from_usb=False,
-                                detected_usb_mount="",
-                                active_session=active_session
-                            )
-                    except Exception as e:
-                        logger.debug(f"Delayed containment error for PID {pid}: {e}")
-
-                threading.Thread(target=delayed_kill, daemon=True, name=f"HunterKill-{pid}").start()
+                # INSTANT KILL — no delay, no grace period
+                self._execute_containment(
+                    proc=p,
+                    pid=pid,
+                    name=name,
+                    cmdline=cmdline,
+                    threat_type=threat_type,
+                    severity=severity,
+                    risk_delta=risk_delta,
+                    is_from_usb=False,
+                    detected_usb_mount="",
+                    active_session=active_session
+                )
                 return
 
             is_test_probe = ("phantom-test" in cmdline or "phantom_test" in cmdline)
