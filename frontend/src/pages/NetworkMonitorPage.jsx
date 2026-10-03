@@ -884,9 +884,14 @@ export function NetworkMonitorPage() {
                 {['ALL', 'DNS', 'TLS', 'HTTP', 'TCP', 'UDP', 'REVERSE_SHELL'].map((proto) => (
                   <button
                     key={proto}
-                    onClick={() => setPacketFilterProto(proto)}
+                    onClick={() => {
+                      setPacketFilterProto(proto);
+                      if (proto === 'ALL') {
+                        setAttackOnly(false);
+                      }
+                    }}
                     className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer whitespace-nowrap border ${
-                      packetFilterProto === proto ? 'bg-[#FDE047] text-black border-[#FDE047]' : 'bg-white/[0.04] text-neutral-400 border-white/[0.08]'
+                      packetFilterProto === proto && !attackOnly ? 'bg-[#FDE047] text-black border-[#FDE047]' : 'bg-white/[0.04] text-neutral-400 border-white/[0.08]'
                     }`}
                   >
                     {proto}
@@ -894,7 +899,13 @@ export function NetworkMonitorPage() {
                 ))}
 
                 <button
-                  onClick={() => setAttackOnly(!attackOnly)}
+                  onClick={() => {
+                    const next = !attackOnly;
+                    setAttackOnly(next);
+                    if (next) {
+                      setPacketFilterProto('ALL');
+                    }
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer whitespace-nowrap border ${
                     attackOnly ? 'bg-[#FDE047] text-black border-[#FDE047]' : 'bg-white/[0.04] text-neutral-300 border-white/[0.08]'
                   }`}
@@ -1000,42 +1011,80 @@ export function NetworkMonitorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.03]">
-                  {packets.map((pkt) => {
-                    const isSelected = selectedPacket?.no === pkt.no;
-                    const isAttack = pkt.is_attack;
-                    return (
-                      <tr
-                        key={pkt.no}
-                        onClick={() => {
-                          setSelectedPacket(pkt);
-                          setAutoScroll(false); // CRITICAL FIX: STOP CONTINUOUS MOVING ON PACKET SELECTION!
-                        }}
-                        className={`cursor-pointer transition-colors group select-none ${
-                          isSelected
-                            ? 'bg-white/10 ring-1 ring-[#FDE047]/50 text-white font-semibold'
-                            : isAttack
-                            ? 'bg-[#FDE047]/10 text-[#FDE047] hover:bg-[#FDE047]/15'
-                            : 'hover:bg-white/[0.03] text-neutral-300'
-                        }`}
-                      >
-                        <td className="py-2 px-3 text-center text-neutral-400 font-mono text-[10px]">{pkt.no}</td>
-                        <td className="py-2 px-3 text-neutral-400 whitespace-nowrap">{pkt.timestamp}</td>
-                        <td className="py-2 px-4 text-white truncate max-w-[170px]">{pkt.source}</td>
-                        <td className="py-2 px-4 text-neutral-300 truncate max-w-[170px]">{pkt.destination}</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
-                            isAttack ? 'bg-[#FDE047] text-black shadow-sm' : pkt.protocol === 'UDP' ? 'bg-white/10 text-white border border-white/20' : 'bg-white/[0.04] text-neutral-400'
-                          }`}>
-                            {pkt.protocol}
+                  {packets.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center">
+                        <div className="flex flex-col items-center justify-center gap-2 text-neutral-400 font-mono text-xs">
+                          <AlertTriangle className="w-8 h-8 text-[#FDE047] opacity-70" />
+                          <span className="font-bold text-white text-sm">
+                            {attackOnly ? "No Malicious Attack Frames in Current Stream" : "No Packets Matching Current Filter"}
                           </span>
-                        </td>
-                        <td className="py-2 px-3 text-right text-neutral-400 font-mono">{pkt.length} B</td>
-                        <td className="py-2 px-4 truncate max-w-[380px]" title={pkt.info}>
-                          <span className={isAttack ? 'text-[#FDE047] font-bold' : 'text-neutral-300'}>{pkt.info}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          <span className="text-[11px] text-neutral-500 max-w-md">
+                            {attackOnly
+                              ? "PHANTOM is filtering for flagged adversary packets. Inject a test attack below or switch to all traffic."
+                              : "No frames match your search or protocol filter. Try clearing filters to see real-time OS traffic."}
+                          </span>
+                          <div className="flex items-center gap-2 mt-3">
+                            <button
+                              onClick={() => {
+                                setAttackOnly(false);
+                                setPacketFilterProto('ALL');
+                                setPacketSearch('');
+                              }}
+                              className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] transition-all cursor-pointer border border-white/20"
+                            >
+                              Show All Live Traffic
+                            </button>
+                            {attackOnly && (
+                              <button
+                                onClick={() => handleSimulateAttack('REVERSE_SHELL')}
+                                className="px-3.5 py-1.5 rounded-full bg-[#FDE047] hover:bg-[#FACC15] text-black font-extrabold text-[11px] transition-all cursor-pointer shadow-md"
+                              >
+                                ⚡ Inject Reverse Shell Packet
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    packets.map((pkt) => {
+                      const isSelected = selectedPacket?.no === pkt.no;
+                      const isAttack = pkt.is_attack;
+                      return (
+                        <tr
+                          key={pkt.no}
+                          onClick={() => {
+                            setSelectedPacket(pkt);
+                            setAutoScroll(false); // CRITICAL FIX: STOP CONTINUOUS MOVING ON PACKET SELECTION!
+                          }}
+                          className={`cursor-pointer transition-colors group select-none ${
+                            isSelected
+                              ? 'bg-white/10 ring-1 ring-[#FDE047]/50 text-white font-semibold'
+                              : isAttack
+                              ? 'bg-[#FDE047]/10 text-[#FDE047] hover:bg-[#FDE047]/15'
+                              : 'hover:bg-white/[0.03] text-neutral-300'
+                          }`}
+                        >
+                          <td className="py-2 px-3 text-center text-neutral-400 font-mono text-[10px]">{pkt.no}</td>
+                          <td className="py-2 px-3 text-neutral-400 whitespace-nowrap">{pkt.timestamp}</td>
+                          <td className="py-2 px-4 text-white truncate max-w-[170px]">{pkt.source}</td>
+                          <td className="py-2 px-4 text-neutral-300 truncate max-w-[170px]">{pkt.destination}</td>
+                          <td className="py-2 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                              isAttack ? 'bg-[#FDE047] text-black shadow-sm' : pkt.protocol === 'UDP' ? 'bg-white/10 text-white border border-white/20' : 'bg-white/[0.04] text-neutral-400'
+                            }`}>
+                              {pkt.protocol}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-right text-neutral-400 font-mono">{pkt.length} B</td>
+                          <td className="py-2 px-4 truncate max-w-[380px]" title={pkt.info}>
+                            <span className={isAttack ? 'text-[#FDE047] font-bold' : 'text-neutral-300'}>{pkt.info}</span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                   <div ref={packetListEndRef} />
                 </tbody>
               </table>

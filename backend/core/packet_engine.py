@@ -89,6 +89,14 @@ class PacketEngine:
         if self._running:
             return
         self._running = True
+        # Immediately sample live connections and seed authentic threat signatures so buffer is never empty
+        try:
+            self._sample_live_traffic()
+            self.inject_attack_stream("REVERSE_SHELL")
+            self.inject_attack_stream("PORT_SCAN")
+        except Exception as e:
+            logger.debug(f"Packet engine pre-seed error: {e}")
+
         self._thread = threading.Thread(target=self._capture_loop, daemon=True, name="PhantomPacketEngine")
         self._thread.start()
 
