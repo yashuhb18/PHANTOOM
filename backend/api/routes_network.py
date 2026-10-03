@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from backend.core.network_monitor import network_monitor
 from backend.core.packet_engine import packet_engine
+from backend.core.edr_correlation import edr_engine
 
 logger = logging.getLogger("phantom.api.network")
 router = APIRouter(prefix="/api/network", tags=["network"])
@@ -155,4 +156,54 @@ async def stream_network_telemetry():
             "Content-Type": "text/event-stream"
         }
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PHANTOM 2.0: EDR CORRELATION & THREAT HUNTING ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ContainThreatRequest(BaseModel):
+    pid: int
+
+
+@router.get("/edr/process-tree")
+def get_edr_process_tree():
+    """Returns unified Process-to-Network map with TCP & UDP socket trees and behavioral risk."""
+    return edr_engine.get_process_network_tree()
+
+
+@router.get("/edr/dns-ledger")
+def get_edr_dns_ledger():
+    """Returns live DNS query telemetry with process attribution and resolver details."""
+    return edr_engine.get_dns_activity()
+
+
+@router.get("/edr/threat-story")
+def get_edr_threat_story():
+    """Returns visual incident threat stories (Incident #0042) with chronological progression."""
+    return edr_engine.get_threat_stories()
+
+
+@router.get("/edr/attack-graph")
+def get_edr_attack_graph(incident_id: str = "INC-0042"):
+    """Returns NetworkX endpoint attack graph linking USB -> Process -> DNS -> UDP -> Canary."""
+    return edr_engine.get_endpoint_attack_graph(incident_id)
+
+
+@router.get("/edr/evidence")
+def get_edr_evidence():
+    """Returns PCAP protocol distribution and top destination IP forensics."""
+    return edr_engine.get_network_evidence()
+
+
+@router.post("/edr/contain")
+def contain_edr_threat(req: ContainThreatRequest):
+    """Surgically kills rogue process tree and severs active network sockets."""
+    return edr_engine.contain_threat(req.pid)
+
+
+@router.post("/edr/demo-chain")
+def trigger_edr_demo_chain():
+    """Initializes or resets the full live demonstration threat chain."""
+    return edr_engine.trigger_demo_threat_chain()
 
