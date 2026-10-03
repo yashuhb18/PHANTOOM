@@ -315,7 +315,9 @@ export function USBFootprintsPage() {
                             : 'bg-white/[0.06] text-neutral-300 border border-white/[0.1]'
                         }`}
                       >
-                        {art.file_name.endsWith('.sh') ? (
+                        {art.file_name.toLowerCase().endsWith('.exe') ? (
+                          <ShieldAlert className="w-5 h-5 text-red-400" />
+                        ) : art.file_name.endsWith('.sh') ? (
                           <Terminal className="w-5 h-5" />
                         ) : art.origin_type === 'DESKTOP' ? (
                           <Monitor className="w-5 h-5" />

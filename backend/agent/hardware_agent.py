@@ -3,6 +3,7 @@ import sys
 import os
 import time
 import logging
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 import psutil
 
@@ -57,6 +58,46 @@ class HardwareAgent:
       - Connected HID Peripherals (Wireless Mouse Dongles, Keyboards, Barcode Scanners)
       - Integrated System USB Devices (Webcams, Bluetooth Adapters, Biometrics)
     """
+
+    @staticmethod
+    def find_active_threats_on_mount(mount_point: str) -> List[str]:
+        """
+        Recursively audits a mounted drive partition (up to 4 levels deep) for high-risk
+        executable binaries (.exe), weaponized scripts, and suspicious payload files.
+        """
+        threats: List[str] = []
+        if not mount_point or not os.path.exists(mount_point):
+            return threats
+
+        DANGEROUS_EXTS = {
+            ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".hta", ".scr", 
+            ".pif", ".com", ".msi", ".dll", ".sh", ".py"
+        }
+        SKIP_DIRS = {"$recycle.bin", "system volume information", ".trash-1000", ".spotlight-v100", ".fseventsd"}
+
+        try:
+            for root, dirs, files in os.walk(mount_point):
+                dirs[:] = [d for d in dirs if d.lower() not in SKIP_DIRS and not d.startswith('.')]
+                try:
+                    rel_depth = len(Path(root).relative_to(mount_point).parts)
+                    if rel_depth > 4:
+                        dirs.clear()
+                        continue
+                except Exception:
+                    pass
+
+                for fname in files:
+                    ext = os.path.splitext(fname)[1].lower()
+                    lower_name = fname.lower()
+                    if ext in DANGEROUS_EXTS or lower_name == "autorun.inf" or any(k in lower_name for k in ("exploit", "malware", "payload", "glitch", "prank", "badusb", "demo")):
+                        if fname not in threats:
+                            threats.append(fname)
+        except Exception as e:
+            logger.debug(f"Threat scan error on {mount_point}: {e}")
+
+        # Prioritize .exe binaries and key scripts at the top of active threats list
+        threats.sort(key=lambda x: (not x.lower().endswith(".exe"), not x.lower().endswith(".bat"), x))
+        return threats
 
     def __init__(self):
         self._cached_topology: Optional[Dict[str, Any]] = None
@@ -346,16 +387,8 @@ class HardwareAgent:
                                     matched_existing["device_name"] = f"{parsed['vendor_name']} Flash Storage"
                             elif not storage_devices:
                                 # Fallback only if no storage device was discovered in step 3
-                                active_threats = []
                                 target_mp = "E:\\"
-                                try:
-                                    if os.path.exists(target_mp):
-                                        for fname in os.listdir(target_mp):
-                                            ext = os.path.splitext(fname)[1].lower()
-                                            if ext in {".bat", ".cmd", ".ps1", ".vbs", ".js", ".hta", ".scr"} or fname.lower() == "autorun.inf":
-                                                active_threats.append(fname)
-                                except Exception:
-                                    pass
+                                active_threats = self.find_active_threats_on_mount(target_mp)
 
                                 storage_devices.append({
                                     "type": "USB_FLASH_DRIVE",
@@ -684,15 +717,7 @@ class HardwareAgent:
                         matched_mount = list(removable_mounts.values())[0]
 
                     target_mp = matched_mount["mount_point"] if matched_mount else "E:\\"
-                    active_threats = []
-                    try:
-                        if os.path.exists(target_mp):
-                            for fname in os.listdir(target_mp):
-                                ext = os.path.splitext(fname)[1].lower()
-                                if ext in {".bat", ".cmd", ".ps1", ".vbs", ".js", ".hta", ".scr"} or fname.lower() == "autorun.inf":
-                                    active_threats.append(fname)
-                    except Exception:
-                        pass
+                    active_threats = self.find_active_threats_on_mount(target_mp)
 
                     drives.append({
                         "type": "USB_FLASH_DRIVE",
@@ -725,15 +750,7 @@ class HardwareAgent:
             for mpoint, info in removable_mounts.items():
                 if info["is_removable"] or (mpoint not in ("C:", "D:")):
                     target_mp = info["mount_point"]
-                    active_threats = []
-                    try:
-                        if os.path.exists(target_mp):
-                            for fname in os.listdir(target_mp):
-                                ext = os.path.splitext(fname)[1].lower()
-                                if ext in {".bat", ".cmd", ".ps1", ".vbs", ".js", ".hta", ".scr"} or fname.lower() == "autorun.inf":
-                                    active_threats.append(fname)
-                    except Exception:
-                        pass
+                    active_threats = self.find_active_threats_on_mount(target_mp)
 
                     drives.append({
                         "type": "USB_FLASH_DRIVE",

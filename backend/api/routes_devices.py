@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -157,22 +158,27 @@ async def delete_threat_file(req: DeleteThreatRequest):
         except Exception as e:
             logger.error(f"Error removing threat file {cand}: {e}")
 
-    # Fallback search if exact path differed
+    # Fallback recursive search if exact path differed or file is in a subfolder
     if not deleted_paths and req.mount_point:
         try:
             mp = req.mount_point.rstrip("\\").rstrip("/")
+            fname_target = (req.filename or "").lower()
             if os.path.exists(mp):
-                for f in os.listdir(mp):
-                    if "something" in f.lower() or f.lower().endswith(".bat") or ".bat.phantom" in f.lower():
-                        full_p = os.path.join(mp, f)
-                        try:
-                            os.remove(full_p)
-                            deleted_paths.append(full_p)
-                            logger.info(f"🗑️ THREAT FILE REMOVED BY USER (wildcard): {full_p}")
-                        except Exception:
-                            pass
-        except Exception:
-            pass
+                for root, dirs, files in os.walk(mp):
+                    for f in files:
+                        if f.lower() == fname_target or (f.lower().startswith(fname_target) and ".phantom_quarantined" in f.lower()):
+                            full_p = os.path.join(root, f)
+                            try:
+                                os.remove(full_p)
+                                deleted_paths.append(full_p)
+                                logger.info(f"🗑️ THREAT FILE REMOVED BY USER (recursive): {full_p}")
+                                break
+                            except Exception as e:
+                                logger.error(f"Failed to remove {full_p}: {e}")
+                    if deleted_paths:
+                        break
+        except Exception as e:
+            logger.debug(f"Error during recursive delete search: {e}")
 
     if deleted_paths:
         try:
@@ -233,7 +239,7 @@ def get_hardware_footprints():
     from backend.agent.hardware_agent import hardware_agent
     from backend.agent.threat_scanner import threat_scanner
 
-    topo = hardware_agent.get_hardware_topology(force_refresh=True)
+    topo = hardware_agent.get_hardware_topology(force_refresh=False)
     storage_devices = topo.get("storage_devices", [])
 
     device_info = None
@@ -256,6 +262,31 @@ def get_hardware_footprints():
             mp = s.get("mount_point")
             if mp and os.path.exists(mp) and mp not in mount_points:
                 mount_points.append(mp)
+
+    # Fallback to psutil for any mounted removable or non-system drive
+    try:
+        import psutil
+        for p in psutil.disk_partitions(all=False):
+            p_mp = p.mountpoint
+            if p_mp and os.path.exists(p_mp):
+                p_clean = p_mp.rstrip("\\/").upper()
+                if "removable" in p.opts.lower() or (os.name == "nt" and p_clean not in ("C:", "D:")):
+                    if p_mp not in mount_points:
+                        mount_points.append(p_mp)
+                    if not device_info:
+                        device_info = {
+                            "name": f"Removable Storage ({p_clean})",
+                            "vendor": "Removable USB",
+                            "model": f"Drive {p_clean}",
+                            "serial": "DETECTED-STORAGE",
+                            "pnp_id": p_mp,
+                            "mount_point": p_mp,
+                            "capacity_gb": 0,
+                            "filesystem": p.fstype or "FAT32",
+                            "status": "MOUNTED_AND_SURVEILLED"
+                        }
+    except Exception:
+        pass
 
     # Check Kali Linux mount directories
     kali_mounts = glob.glob("/run/media/yashz/*") + glob.glob("/run/media/root/*") + glob.glob("/media/yashz/*")
@@ -312,7 +343,7 @@ def get_hardware_footprints():
                 file_category = "DIGITAL_DUST"
                 indicators = ["Host Operating System Remnant Fingerprint"]
 
-            if "exploit" in fname.lower() or "malware" in fname.lower() or ext in (".sh", ".bat", ".ps1", ".py"):
+            if "exploit" in fname.lower() or "malware" in fname.lower() or ext in (".sh", ".bat", ".ps1", ".py", ".exe", ".scr", ".pif", ".com", ".msi", ".dll", ".cmd", ".vbs", ".js", ".hta"):
                 try:
                     analysis = threat_scanner._analyze_file(filepath, "sess_footprints")
                     if analysis:
@@ -321,9 +352,11 @@ def get_hardware_footprints():
                 except Exception:
                     pass
 
-                if threat_score >= 40:
+                if threat_score >= 40 or ext in (".exe", ".scr", ".pif", ".com"):
                     verdict = "CRITICAL_THREAT"
-                    file_category = "EXPLOIT_PAYLOAD"
+                    file_category = "BINARY_EXECUTABLE" if ext in (".exe", ".dll", ".scr") else "EXPLOIT_PAYLOAD"
+                    if threat_score < 40:
+                        threat_score = 65
                 elif threat_score >= 20:
                     verdict = "SUSPICIOUS_SCRIPT"
                     file_category = "ROGUE_SCRIPT"
@@ -371,11 +404,25 @@ def get_hardware_footprints():
     for tf in tmp_files:
         process_file(tf, "SYSTEM_TMP", "Host System Audit (/tmp)")
 
-    # 3. Files on all active USB mount points
+    # 3. Files on all active USB mount points (recursively traverse subfolders)
     for mp in mount_points:
-        usb_files = glob.glob(os.path.join(mp, "*"))
-        for uf in usb_files:
-            process_file(uf, "USB_DRIVE", f"USB Storage ({mp})")
+        try:
+            for root, dirs, files in os.walk(mp):
+                dirs[:] = [d for d in dirs if d.lower() not in ("$recycle.bin", "system volume information", ".trash-1000", ".spotlight-v100") and not d.startswith('.')]
+                try:
+                    rel_parts = len(Path(root).relative_to(mp).parts)
+                    if rel_parts > 4:
+                        dirs.clear()
+                        continue
+                except Exception:
+                    pass
+                for f in files:
+                    uf = os.path.join(root, f)
+                    rel_dir = os.path.relpath(root, mp)
+                    origin_lbl = f"USB Storage ({mp})" if rel_dir == "." else f"USB ({mp} \\ {rel_dir})"
+                    process_file(uf, "USB_DRIVE", origin_lbl)
+        except Exception as e:
+            logger.debug(f"Footprints walk error on {mp}: {e}")
 
     # Sort: highest threats first, then recent files
     artifacts.sort(key=lambda x: (x["threat_score"], x["modified_time"]), reverse=True)

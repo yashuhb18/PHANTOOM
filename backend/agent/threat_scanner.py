@@ -542,8 +542,26 @@ class ThreatScanner:
                 })
 
             # ── Extension-based risk scoring ──
-            if ext in AUTO_QUARANTINE_EXTENSIONS:
-                base_score = 15 if ext in {".bat", ".cmd", ".ps1", ".vbs", ".js", ".hta", ".wsf"} else 10
+            if ext in {".exe", ".scr", ".pif", ".com", ".msi"}:
+                base_score = 45  # Direct execution vector on removable media
+                result["threat_score"] += base_score
+                result["threat_indicators"].append({
+                    "indicator": f"EXECUTABLE_ON_REMOVABLE_STORAGE_{ext.upper().lstrip('.')}",
+                    "description": f"Standalone binary ({ext}) present on removable storage — unauthorized execution vector",
+                    "score": base_score
+                })
+                # Check for suspicious threat naming
+                lower_fname = fname.lower()
+                if any(k in lower_fname for k in ("exploit", "malware", "payload", "glitch", "error", "prank", "demo", "hack", "miner", "trojan")):
+                    score_add = 30
+                    result["threat_score"] += score_add
+                    result["threat_indicators"].append({
+                        "indicator": "ADVERSARY_PAYLOAD_NAMING",
+                        "description": f"Binary name '{fname}' matches known adversary exploit/demo pattern",
+                        "score": score_add
+                    })
+            elif ext in AUTO_QUARANTINE_EXTENSIONS:
+                base_score = 25 if ext in {".bat", ".cmd", ".ps1", ".vbs", ".js", ".hta", ".wsf"} else 15
                 result["threat_score"] += base_score
                 result["threat_indicators"].append({
                     "indicator": f"DANGEROUS_FILE_TYPE_{ext.upper().lstrip('.')}",

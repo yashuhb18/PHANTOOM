@@ -358,7 +358,7 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
                   {hasUsbThreat ? (
                     <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-red-500/25 text-red-300 border border-red-500/50 font-bold flex items-center gap-1.5">
                       <AlertTriangle className="w-3 h-3 text-red-400" />
-                      MALICIOUS SCRIPT ({threatFileName}) DETECTED
+                      {threatFileName?.toLowerCase().endsWith('.exe') ? 'MALICIOUS EXECUTABLE' : 'MALICIOUS PAYLOAD'} ({threatFileName}) DETECTED
                     </span>
                   ) : (
                     <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1.5">
@@ -371,7 +371,7 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
                 {hasUsbThreat ? (
                   <div className="pt-1.5 space-y-1">
                     <p className="text-xs font-bold text-red-200">
-                      ⚠️ Threat detected: <span className="underline text-white font-mono">{threatFileName}</span> is inside this folder.
+                      ⚠️ Threat detected: <span className="underline text-white font-mono">{threatFileName}</span> {primaryStorage?.active_threats?.length > 1 ? `(+${primaryStorage.active_threats.length - 1} more threat files)` : ''} found on drive.
                     </p>
                     <p className="text-xs font-black text-yellow-300">
                       You need to eject as early as possible or eject now.
