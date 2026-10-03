@@ -420,6 +420,14 @@ class ResponseEngine:
             details_str = f"Process termination attempted for PID {pid}: {e}"
             logger.error(f"Error terminating PID {pid}: {e}")
 
+        # On Windows, always enforce taskkill /F /T /PID to wipe process tree and GUI windows
+        if sys.platform == "win32":
+            try:
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=2)
+                killed = True
+            except Exception:
+                pass
+
         conn = get_db()
         cursor = conn.cursor()
         sid = session_id or "sess_system"
@@ -494,6 +502,14 @@ class ResponseEngine:
             parent_killed = True
         except Exception as e:
             logger.error(f"Error in process tree kill for PID {pid}: {e}")
+
+        # On Windows, enforce taskkill /F /T to destroy the entire process tree and all child windows
+        if sys.platform == "win32":
+            try:
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=2)
+                parent_killed = True
+            except Exception:
+                pass
 
         # Record alert
         conn = get_db()

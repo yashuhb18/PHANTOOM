@@ -178,6 +178,13 @@ class ProcessMonitor:
         "flood_test",
         "tenter.sh",
         "run_terminals.sh",
+        # Batch attack scripts, exploit launchers & demo payloads
+        "run_all.bat", "run_all.cmd", "run_all",
+        "install_this.bat", "install_this",
+        "usb_watcher.ps1",
+        "glitch_demo", "error_demo", "usb_demo",
+        "glitch_demo.exe", "error_demo.exe", "usb_demo.exe",
+        "glitch.exe", "error.exe",
     ]
 
     # ACTIVE DEFENSE MODE: When False, PHANTOM autonomously detects, alerts, and kills
@@ -234,9 +241,11 @@ class ProcessMonitor:
         except Exception:
             self._known_pids = set()
 
+        cycle_counter = 0
         while self._running:
             try:
                 time.sleep(0.5)  # 500ms polling — fast enough for real-time response
+                cycle_counter += 1
                 current_pids = set(psutil.pids())
                 new_pids = current_pids - self._known_pids
 
@@ -253,9 +262,113 @@ class ProcessMonitor:
 
                 self._known_pids = current_pids
 
+                # Every 2 cycles (~1.0s), inspect active processes for runaway CPU processor burn
+                if cycle_counter % 2 == 0:
+                    self._check_high_cpu_processes()
+
             except Exception as e:
                 logger.debug(f"Process monitor cycle error: {e}")
                 time.sleep(1.0)
+
+    # ─────────────────────────────────────────────────────────────────────
+    # REAL-TIME PROCESSOR ANOMALY SURVEILLANCE
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _check_high_cpu_processes(self):
+        """
+        Active Processor Anomaly Watcher.
+        Surveils active processes for abnormal multi-core CPU spikes (>= 35% CPU).
+        Excludes protected core IDE, system infrastructure, and PHANTOM daemons.
+        Autonomously terminates rogue processor-burning payloads and cryptominers.
+        """
+        my_pid = os.getpid()
+        parent_pid = os.getppid()
+
+        SAFE_PROCESS_NAMES = {
+            "system", "system idle process", "registry", "smss.exe", "csrss.exe",
+            "wininit.exe", "services.exe", "lsass.exe", "svchost.exe", "dwm.exe",
+            "explorer.exe", "taskmgr.exe", "antigravity.exe", "code.exe", "cursor.exe",
+            "ollama.exe", "ollama_llama_server.exe", "node.exe", "python.exe", "python3.exe",
+            "uvicorn.exe"
+        }
+
+        try:
+            for p in psutil.process_iter(['pid', 'name', 'exe', 'cmdline', 'cpu_percent']):
+                try:
+                    pid = p.info['pid']
+                    if pid in (0, 4, my_pid, parent_pid) or pid in self._killed_pids:
+                        continue
+                    pname = (p.info.get('name') or "").lower()
+                    if pname in SAFE_PROCESS_NAMES or any(s in pname for s in ("antigravity", "cursor", "code", "ollama", "system")):
+                        continue
+
+                    # Check for IDE / Assistant parents or servers
+                    cmdline = " ".join(p.info.get('cmdline') or []).lower()
+                    if any(srv in cmdline for srv in ("uvicorn", "backend.main", "vite", "antigravity", "cursor", "code-insiders", "ollama")):
+                        continue
+
+                    # Check process CPU utilization
+                    cpu = p.info.get('cpu_percent') or 0.0
+
+                    # Exclude Windows system service paths and trusted enterprise software from generic CPU killing
+                    proc_exe = (p.info.get('exe') or "").lower()
+                    is_in_system_dir = any(sys_path in proc_exe for sys_path in (
+                        "c:\\windows", "c:\\program files", "c:\\program files (x86)", "\\windowsapps"
+                    ))
+                    is_trusted_app = any(svc in pname for svc in ("splunk", "installer", "trustedinstaller", "tiworker", "searchindexer", "spoolsv", "backgrounddownload", "xbox", "msedge", "chrome", "firefox", "teams"))
+
+                    # Suspicious named processes (glitch, demo, prank, miner, rogue) are flagged immediately upon processor burn
+                    is_suspicious_name = any(k in pname for k in ("glitch", "demo", "error", "prank", "rogue", "miner", "test", "load", "burn", "cryptominer"))
+                    is_suspicious_spike = is_suspicious_name and cpu >= 12.0
+                    is_general_spike = cpu >= 35.0 and not (is_in_system_dir or is_trusted_app)
+
+                    if is_general_spike or is_suspicious_spike:
+                        logger.warning(f"🚨 RUNAWAY PROCESSOR THREAT: '{pname}' (PID {pid}) using {cpu}% CPU! Autonomous kill engaged.")
+
+                        active_session = session_manager.get_active_session()
+                        session_id = active_session["session_id"] if active_session else f"sess_live_{int(time.time())}"
+                        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+                        alert_event = {
+                            "source": "PROCESS_MONITOR",
+                            "event_type": "HIGH_CPU_PROCESSOR_ANOMALY",
+                            "severity": "CRITICAL",
+                            "session_id": session_id,
+                            "timestamp": now,
+                            "data": {
+                                "process_name": pname,
+                                "pid": pid,
+                                "command_line": cmdline[:200],
+                                "cpu_percent": round(cpu, 1),
+                                "threat_type": "RUNAWAY_HIGH_PROCESSOR_ABUSE",
+                                "anomaly": f"PROCESSOR_BURST_{round(cpu, 1)}_PERCENT",
+                                "status": "AUTONOMOUS_KILL_EXECUTED"
+                            }
+                        }
+                        self._broadcast_safe(ws_manager.broadcast_live(alert_event))
+                        self._broadcast_safe(ws_manager.broadcast_narrator({
+                            "session_id": session_id,
+                            "narration": f"🔴 PROCESSOR SPIKE NEUTRALIZED: '{pname}' (PID {pid}) consumed {round(cpu, 1)}% CPU across system processor cores. PHANTOM autonomous containment terminated the threat instantly.",
+                            "timestamp": now
+                        }))
+
+                        proc_obj = psutil.Process(pid)
+                        self._execute_containment(
+                            proc=proc_obj,
+                            pid=pid,
+                            name=pname,
+                            cmdline=cmdline,
+                            threat_type="RUNAWAY_HIGH_PROCESSOR_ABUSE",
+                            severity="CRITICAL",
+                            risk_delta=50,
+                            is_from_usb=False,
+                            detected_usb_mount="",
+                            active_session=active_session
+                        )
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+        except Exception as e:
+            logger.debug(f"High CPU scan error: {e}")
 
     # ─────────────────────────────────────────────────────────────────────
     # PROCESS ANALYSIS ENGINE
@@ -296,22 +409,40 @@ class ProcessMonitor:
                 proc_cwd = ""
 
             # ─────────────────────────────────────────────────────────────
-            # TOP PRIORITY: Rogue High-CPU Cryptominer / Evaluator Payload
+            # TOP PRIORITY: Rogue High-CPU Cryptominer / Adversary Executables / Batch Attack Launchers
             # ─────────────────────────────────────────────────────────────
+            ROGUE_PATTERNS = (
+                "phantom_rogue", "rogue_malware", "rogue_payload", "phantom_malware",
+                "glitch", "error_demo", "usb_demo", "cryptominer", "malware_demo",
+                "badusb", "rubberducky", "forkbomb", "prank", "run_all"
+            )
             is_rogue = (
-                name not in ("python.exe", "python3.exe", "pythonw.exe", "node.exe", "npm.exe", "powershell.exe", "cmd.exe")
+                name not in ("python.exe", "python3.exe", "pythonw.exe", "node.exe", "npm.exe", "powershell.exe")
                 and (
-                    any(k in name for k in ("phantom_rogue", "rogue_malware", "rogue_payload", "phantom_malware"))
-                    or any(k in proc_exe for k in ("phantom_rogue", "rogue_malware", "rogue_payload", "phantom_malware"))
-                    or (name.endswith(".exe") and any(k in name for k in ("rogue", "cryptominer", "malware_demo")))
+                    any(k in name for k in ROGUE_PATTERNS)
+                    or any(k in proc_exe for k in ROGUE_PATTERNS)
+                    or (name.endswith(".exe") and any(k in name for k in ("rogue", "cryptominer", "malware", "glitch", "error_demo", "usb_demo", "prank", "payload", "miner")))
+                    or ("cmd.exe" in name and any(k in cmdline for k in ("run_all", "install_this", "glitch", "error_demo", "usb_demo")))
                 )
             )
 
             if is_rogue:
-                threat_type = "ROGUE_HIGH_CPU_CRYPTOMINER"
+                if "glitch" in name or "glitch" in proc_exe:
+                    threat_type = "ROGUE_HIGH_CPU_GLITCH_PAYLOAD"
+                    narration_threat = "rogue visual glitch & multi-core processor burn payload"
+                elif "error_demo" in name or "error_demo" in proc_exe:
+                    threat_type = "ROGUE_ERROR_FLOOD_PAYLOAD"
+                    narration_threat = "rogue error dialog cascade flood attack"
+                elif "run_all" in cmdline:
+                    threat_type = "BATCH_ATTACK_LAUNCHER"
+                    narration_threat = "automated attack launcher [Run_All.bat]"
+                else:
+                    threat_type = "ROGUE_HIGH_CPU_MALWARE"
+                    narration_threat = "rogue adversary payload / high-CPU threat"
+
                 severity = "CRITICAL"
                 risk_delta = 50
-                logger.warning(f"🚨 ROGUE HIGH-CPU MALWARE DETECTED: {name} (PID: {pid}). INSTANT AUTONOMOUS KILL ENGAGED — zero tolerance, no grace period.")
+                logger.warning(f"🚨 ROGUE THREAT INTERCEPTED: {name} (PID: {pid}). INSTANT AUTONOMOUS KILL ENGAGED — zero tolerance, no grace period.")
 
                 active_session = session_manager.get_active_session()
                 session_id = active_session["session_id"] if active_session else f"sess_live_{int(time.time())}"
@@ -335,9 +466,29 @@ class ProcessMonitor:
                 self._broadcast_safe(ws_manager.broadcast_live(alert_event))
                 self._broadcast_safe(ws_manager.broadcast_narrator({
                     "session_id": session_id,
-                    "narration": f"🔴 INSTANT KILL: '{name}' (PID {pid}) — rogue high-CPU cryptominer detected. PHANTOM executed immediate autonomous containment with zero grace period.",
+                    "narration": f"🔴 INSTANT KILL: '{name}' (PID {pid}) — {narration_threat} intercepted. PHANTOM executed immediate autonomous containment with zero grace period.",
                     "timestamp": now
                 }))
+
+                detected_usb = ""
+                is_usb_origin = False
+                if active_session and active_session.get("mount_point"):
+                    s_mp = active_session["mount_point"].lower().rstrip("\\/")
+                    if (s_mp in proc_exe or s_mp in proc_cwd or s_mp in cmdline):
+                        is_usb_origin = True
+                        detected_usb = active_session["mount_point"]
+
+                if not is_usb_origin:
+                    try:
+                        for part in psutil.disk_partitions(all=False):
+                            p_mp = part.mountpoint.lower().rstrip("\\/")
+                            if p_mp and p_mp not in ("c:", "d:"):
+                                if (p_mp in proc_exe or p_mp in proc_cwd or p_mp in cmdline):
+                                    is_usb_origin = True
+                                    detected_usb = part.mountpoint
+                                    break
+                    except Exception:
+                        pass
 
                 # INSTANT KILL — no delay, no grace period
                 self._execute_containment(
@@ -348,8 +499,8 @@ class ProcessMonitor:
                     threat_type=threat_type,
                     severity=severity,
                     risk_delta=risk_delta,
-                    is_from_usb=False,
-                    detected_usb_mount="",
+                    is_from_usb=is_usb_origin,
+                    detected_usb_mount=detected_usb,
                     active_session=active_session
                 )
                 return
@@ -760,6 +911,34 @@ class ProcessMonitor:
                 session_id=session_id,
                 reason=f"Autonomous Kill: {threat_type} ('{cmdline[:80]}')"
             )
+
+        # Forcefully terminate on Windows and close GUI window
+        if sys.platform == "win32":
+            try:
+                import subprocess
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=2)
+            except Exception:
+                pass
+
+        # If this threat is a demo attack, prank, or batch launcher, sweep for parallel instances
+        if any(k in threat_type.lower() for k in ("glitch", "error", "demo", "batch", "rogue", "processor")) or any(k in name for k in ("glitch", "error_demo", "usb_demo", "run_all")):
+            try:
+                for cand in psutil.process_iter(['pid', 'name']):
+                    try:
+                        c_name = (cand.info.get('name') or "").lower()
+                        if any(c_name.startswith(pre) for pre in ("glitch", "error_demo", "usb_demo")):
+                            c_pid = cand.info['pid']
+                            if c_pid not in (my_pid, os.getppid()) and c_pid not in self._killed_pids:
+                                cand.kill()
+                                self._killed_pids.add(c_pid)
+                                if sys.platform == "win32":
+                                    import subprocess
+                                    subprocess.run(["taskkill", "/F", "/PID", str(c_pid)], capture_output=True, timeout=1)
+                                logger.warning(f"   └── Neutralized parallel demo payload: {c_name} (PID {c_pid})")
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
         # 4b. If terminal storm or loop attack, also terminate all tracked storm terminals, loop scripts, and the spawning parent script
         if threat_type in ("TERMINAL_BURST_STORM_ATTACK", "TERMINAL_SPAM_FLOOD_ATTACK") or any(k in cmdline.lower() for k in ("usb-terminal-loop", "usb-terminal-demo")):
