@@ -20,6 +20,7 @@ import { HardwarePorts } from './pages/HardwarePorts';
 import { ThreatAnalyticsPage } from './pages/ThreatAnalyticsPage';
 import { USBFootprintsPage } from './pages/USBFootprintsPage';
 import { SIEMHuntBoard } from './pages/SIEMHuntBoard';
+import { WhatsAppBotPage } from './pages/WhatsAppBotPage';
 
 function AppContent() {
   const [currentTab, setCurrentTab] = useState('landing');
@@ -81,6 +82,7 @@ function AppContent() {
       {currentTab === 'dashboard' && (
         <Dashboard setTab={setCurrentTab} setSelectedSessionId={setSelectedSessionId} />
       )}
+      {currentTab === 'whatsapp' && <WhatsAppBotPage />}
       {currentTab === 'siem' && <SIEMHuntBoard />}
       {currentTab === 'ports' && (
         <HardwarePorts setTab={setCurrentTab} setSelectedSessionId={setSelectedSessionId} />
