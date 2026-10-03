@@ -4,8 +4,8 @@ import { GitCompare, CheckCircle, AlertTriangle, Cpu, HardDrive, Laptop, Activit
 export function SimilarityGraph({ comparison }) {
   if (!comparison) {
     return (
-      <div className="bg-[#0C0C0E]/95 border border-white/[0.08] rounded-[28px] p-12 text-center text-xs font-mono text-neutral-500 backdrop-blur-md">
-        Select two sessions or run Attack #2 to compare cross-device Forensic DNA & Lineage.
+      <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-12 text-center text-xs text-neutral-500 shadow-2xl">
+        Select two sessions to compare cross-device Forensic DNA & Lineage.
       </div>
     );
   }
@@ -18,22 +18,21 @@ export function SimilarityGraph({ comparison }) {
     host_heritage_match: 0.98,
     behavior_match: 0.95
   };
-  const provenance = comparison.provenance_links || {};
 
   return (
-    <div className="bg-[#0C0C0E]/95 border border-white/[0.08] rounded-[28px] p-6 shadow-2xl backdrop-blur-md space-y-6">
+    <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 shadow-2xl space-y-6">
       
       {/* ══════════════════════════════════════════════════════════════════════
           HEADER & VERDICT
       ══════════════════════════════════════════════════════════════════════ */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/[0.08]">
         <div className="flex items-center gap-2.5">
-          <GitCompare className="w-5 h-5 text-cyan-400" />
+          <GitCompare className="w-5 h-5 text-[#FDE047]" />
           <div>
-            <h3 className="text-xs font-bold font-mono text-white uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
               Cross-Device Forensic DNA & Lineage Matrix
             </h3>
-            <span className="text-[11px] font-mono text-neutral-400">
+            <span className="text-[11px] text-neutral-400">
               Correlating operator provenance across disparate USB devices
             </span>
           </div>
@@ -41,7 +40,7 @@ export function SimilarityGraph({ comparison }) {
         
         <span className={`text-[10px] font-mono px-3 py-1 rounded-full font-bold uppercase border tracking-wider ${
           isMatch
-            ? 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse'
+            ? 'bg-red-500/15 text-red-400 border-red-500/30'
             : 'bg-white/[0.04] text-neutral-300 border-white/[0.08]'
         }`}>
           {isMatch ? "ATTACKER LINK IDENTIFIED" : "DISTINCT ATTACK PROFILE"}
@@ -49,10 +48,10 @@ export function SimilarityGraph({ comparison }) {
       </div>
 
       {/* Forensic Verdict Banner */}
-      <div className={`p-4 rounded-2xl border font-mono text-xs leading-relaxed ${
+      <div className={`p-4 rounded-2xl border text-xs leading-relaxed ${
         isMatch
           ? 'bg-red-500/[0.06] border-red-500/30 text-neutral-200'
-          : 'bg-white/[0.02] border-white/[0.08] text-neutral-400'
+          : 'bg-neutral-900 border-white/[0.08] text-neutral-400'
       }`}>
         <div className="flex items-start gap-2.5">
           {isMatch ? (
@@ -70,21 +69,21 @@ export function SimilarityGraph({ comparison }) {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          SIMILARITY DIAL & SESSIONS COMPARED
+          SIMILARITY DIAL & SESSIONS COMPARED (PHANTOM YELLOW THEME)
       ══════════════════════════════════════════════════════════════════════ */}
       <div className="flex flex-col md:flex-row items-center gap-8 py-2">
         {/* Donut similarity indicator */}
         <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
             <path
-              className="text-[#18181D]"
+              className="text-neutral-900"
               strokeWidth="3.5"
               stroke="currentColor"
               fill="none"
               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
             />
             <path
-              className={isMatch ? 'text-cyan-400' : 'text-neutral-500'}
+              className={isMatch ? 'text-[#FDE047]' : 'text-neutral-400'}
               strokeDasharray={`${percentage}, 100`}
               strokeWidth="3.5"
               strokeLinecap="round"
@@ -94,32 +93,32 @@ export function SimilarityGraph({ comparison }) {
             />
           </svg>
           <div className="absolute flex flex-col items-center justify-center text-center">
-            <span className={`text-3xl font-extrabold font-mono tracking-tight ${isMatch ? 'text-white' : 'text-neutral-300'}`}>
+            <span className={`text-3xl font-extrabold font-mono tracking-tight ${isMatch ? 'text-[#FDE047]' : 'text-white'}`}>
               {percentage}%
             </span>
-            <span className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest mt-0.5 font-bold">
+            <span className="text-[9px] font-mono text-neutral-400 uppercase tracking-widest mt-0.5 font-bold">
               DNA MATCH
             </span>
           </div>
         </div>
 
         {/* Sessions compared */}
-        <div className="flex-1 w-full space-y-3 font-mono">
-          <div className="p-3 bg-[#121216] border border-white/[0.06] rounded-xl text-xs flex items-center justify-between">
+        <div className="flex-1 w-full space-y-3">
+          <div className="p-3 bg-[#181818] border border-white/[0.06] rounded-xl text-xs flex items-center justify-between">
             <div>
-              <span className="text-neutral-500 block text-[10px] uppercase">Profile #1 (Source)</span>
-              <span className="font-bold text-white">{comparison.source_session_id}</span>
+              <span className="text-neutral-500 block text-[10px] uppercase font-medium">Profile #1 (Source)</span>
+              <span className="font-mono font-bold text-white">{comparison.source_session_id}</span>
             </div>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-white/[0.04] text-neutral-400">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-neutral-900 text-neutral-300">
               {comparison.source_genome?.silicon?.device_name || "Device A"}
             </span>
           </div>
-          <div className="p-3 bg-[#121216] border border-white/[0.06] rounded-xl text-xs flex items-center justify-between">
+          <div className="p-3 bg-[#181818] border border-white/[0.06] rounded-xl text-xs flex items-center justify-between">
             <div>
-              <span className="text-neutral-500 block text-[10px] uppercase">Profile #2 (Swapped Hardware)</span>
-              <span className="font-bold text-white">{comparison.target_session_id}</span>
+              <span className="text-neutral-500 block text-[10px] uppercase font-medium">Profile #2 (Target)</span>
+              <span className="font-mono font-bold text-white">{comparison.target_session_id}</span>
             </div>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-white/[0.04] text-neutral-400">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-neutral-900 text-neutral-300">
               {comparison.target_genome?.silicon?.device_name || "Device B"}
             </span>
           </div>
@@ -129,7 +128,7 @@ export function SimilarityGraph({ comparison }) {
       {/* ══════════════════════════════════════════════════════════════════════
           THE 4-LAYER GENOMIC MATCH BREAKDOWN
       ══════════════════════════════════════════════════════════════════════ */}
-      <div className="space-y-3 font-mono">
+      <div className="space-y-3">
         <h4 className="text-xs font-bold text-white uppercase tracking-wider">
           Genomic Layer Alignment Breakdown
         </h4>
@@ -137,17 +136,17 @@ export function SimilarityGraph({ comparison }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           
           {/* Layer 1: Silicon */}
-          <div className="p-3 rounded-xl bg-[#121216] border border-white/[0.06] space-y-1.5">
+          <div className="p-3 rounded-xl bg-[#181818] border border-white/[0.06] space-y-1.5">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center gap-1.5 text-neutral-300">
-                <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="flex items-center gap-1.5 text-neutral-300 font-medium">
+                <Cpu className="w-3.5 h-3.5 text-[#FDE047]" />
                 <span>Layer 1: Silicon & Controller</span>
               </span>
-              <span className="font-bold text-white">{Math.round(layers.silicon_match * 100)}%</span>
+              <span className="font-bold text-white font-mono">{Math.round(layers.silicon_match * 100)}%</span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+            <div className="w-full h-1.5 rounded-full bg-neutral-900 overflow-hidden">
               <div
-                className="h-full bg-cyan-400 rounded-full transition-all duration-500"
+                className="h-full bg-[#FDE047] rounded-full transition-all duration-500"
                 style={{ width: `${Math.round(layers.silicon_match * 100)}%` }}
               />
             </div>
@@ -157,17 +156,17 @@ export function SimilarityGraph({ comparison }) {
           </div>
 
           {/* Layer 2: Volume */}
-          <div className="p-3 rounded-xl bg-[#121216] border border-white/[0.06] space-y-1.5">
+          <div className="p-3 rounded-xl bg-[#181818] border border-white/[0.06] space-y-1.5">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center gap-1.5 text-neutral-300">
-                <HardDrive className="w-3.5 h-3.5 text-purple-400" />
+              <span className="flex items-center gap-1.5 text-neutral-300 font-medium">
+                <HardDrive className="w-3.5 h-3.5 text-[#FDE047]" />
                 <span>Layer 2: Filesystem & Volume</span>
               </span>
-              <span className="font-bold text-white">{Math.round(layers.volume_match * 100)}%</span>
+              <span className="font-bold text-white font-mono">{Math.round(layers.volume_match * 100)}%</span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+            <div className="w-full h-1.5 rounded-full bg-neutral-900 overflow-hidden">
               <div
-                className="h-full bg-purple-400 rounded-full transition-all duration-500"
+                className="h-full bg-[#FDE047] rounded-full transition-all duration-500"
                 style={{ width: `${Math.round(layers.volume_match * 100)}%` }}
               />
             </div>
@@ -176,43 +175,43 @@ export function SimilarityGraph({ comparison }) {
             </span>
           </div>
 
-          {/* Layer 3: Host Heritage (THE BIG WOW) */}
-          <div className="p-3 rounded-xl bg-[#121216] border border-cyan-500/30 space-y-1.5">
+          {/* Layer 3: Host Heritage */}
+          <div className="p-3 rounded-xl bg-[#181818] border border-white/[0.06] space-y-1.5">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center gap-1.5 text-cyan-300 font-bold">
-                <Laptop className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="flex items-center gap-1.5 text-neutral-300 font-medium">
+                <Laptop className="w-3.5 h-3.5 text-[#FDE047]" />
                 <span>Layer 3: Host Dust & Provenance</span>
               </span>
-              <span className="font-bold text-cyan-400">{Math.round(layers.host_heritage_match * 100)}%</span>
+              <span className="font-bold text-[#FDE047] font-mono">{Math.round(layers.host_heritage_match * 100)}%</span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+            <div className="w-full h-1.5 rounded-full bg-neutral-900 overflow-hidden">
               <div
-                className="h-full bg-cyan-400 rounded-full transition-all duration-500"
+                className="h-full bg-[#FDE047] rounded-full transition-all duration-500"
                 style={{ width: `${Math.round(layers.host_heritage_match * 100)}%` }}
               />
             </div>
-            <span className="text-[10px] text-cyan-400/80 block font-semibold">
-              Identical preparing workstation & OS remnants
+            <span className="text-[10px] text-neutral-400 block font-medium">
+              Workstation provenance & OS remnants
             </span>
           </div>
 
           {/* Layer 4: Behavior */}
-          <div className="p-3 rounded-xl bg-[#121216] border border-white/[0.06] space-y-1.5">
+          <div className="p-3 rounded-xl bg-[#181818] border border-white/[0.06] space-y-1.5">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center gap-1.5 text-neutral-300">
-                <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="flex items-center gap-1.5 text-neutral-300 font-medium">
+                <Activity className="w-3.5 h-3.5 text-[#FDE047]" />
                 <span>Layer 4: Attack Telemetry</span>
               </span>
-              <span className="font-bold text-white">{Math.round(layers.behavior_match * 100)}%</span>
+              <span className="font-bold text-white font-mono">{Math.round(layers.behavior_match * 100)}%</span>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+            <div className="w-full h-1.5 rounded-full bg-neutral-900 overflow-hidden">
               <div
-                className="h-full bg-emerald-400 rounded-full transition-all duration-500"
+                className="h-full bg-[#FDE047] rounded-full transition-all duration-500"
                 style={{ width: `${Math.round(layers.behavior_match * 100)}%` }}
               />
             </div>
             <span className="text-[10px] text-neutral-500 block">
-              Identical injection vectors & canary hits
+              Matching injection vectors & payload flags
             </span>
           </div>
 
@@ -222,7 +221,7 @@ export function SimilarityGraph({ comparison }) {
       {/* ══════════════════════════════════════════════════════════════════════
           COMMON VS DIVERGENT TOKENS
       ══════════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/[0.08] font-mono">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/[0.08]">
         <div>
           <h4 className="text-xs font-bold text-emerald-400 mb-2.5 flex items-center gap-1.5 uppercase">
             <CheckCircle className="w-3.5 h-3.5" />
@@ -239,12 +238,12 @@ export function SimilarityGraph({ comparison }) {
 
         <div>
           <h4 className="text-xs font-bold text-neutral-400 mb-2.5 flex items-center gap-1.5 uppercase">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <AlertTriangle className="w-3.5 h-3.5 text-[#FDE047]" />
             <span>Divergent Tokens ({comparison.divergence_points?.length || 0})</span>
           </h4>
           <div className="space-y-1.5">
             {comparison.divergence_points?.map((token, idx) => (
-              <div key={idx} className="p-2 px-3 bg-[#121216] border border-white/[0.06] rounded-xl text-[10px] font-mono text-neutral-400">
+              <div key={idx} className="p-2 px-3 bg-[#181818] border border-white/[0.06] rounded-xl text-[10px] font-mono text-neutral-400">
                 {token}
               </div>
             ))}

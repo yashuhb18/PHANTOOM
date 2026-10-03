@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { FingerprintList } from '../components/intelligence/FingerprintList';
 import { SimilarityGraph } from '../components/intelligence/SimilarityGraph';
 import { ForensicDNADossier } from '../components/intelligence/ForensicDNADossier';
-import { SimulateButton } from '../components/common/SimulateButton';
 import { LoadingState } from '../components/common/LoadingState';
 import { useWebSocket } from '../hooks/useWebSocket';
 import {
@@ -10,8 +9,10 @@ import {
   RefreshCw,
   Trash2,
   Usb,
-  ShieldCheck,
-  AlertTriangle
+  Radio,
+  HardDrive,
+  Cpu,
+  Layers
 } from 'lucide-react';
 
 export function ThreatIntelligence() {
@@ -26,7 +27,7 @@ export function ThreatIntelligence() {
   const loadData = async () => {
     setIsRefreshing(true);
     try {
-      // 1. Fetch cataloged fingerprints
+      // 1. Fetch cataloged real fingerprints
       const res = await fetch(`http://${window.location.hostname}:8001/api/fingerprints`);
       if (res.ok) {
         const data = await res.json();
@@ -40,7 +41,7 @@ export function ThreatIntelligence() {
           setActiveLive(liveProfile);
         }
 
-        // Priority 1: If real USB is currently physically mounted, select it!
+        // Priority 1: If real USB is currently physically mounted, select it
         if (liveProfile && liveProfile.is_connected && liveProfile.genome) {
           setSelectedFp({
             session_id: liveProfile.genome.session_id,
@@ -51,12 +52,11 @@ export function ThreatIntelligence() {
             genome: liveProfile.genome
           });
         } else if (data.length > 0) {
-          // If we have real recorded sessions in history, pick the latest or keep current selection
+          // If we have real recorded sessions in history, pick latest or keep current selection
           if (!selectedFp || !data.some(d => d.session_id === selectedFp.session_id)) {
             setSelectedFp(data[0]);
           }
         } else {
-          // No USB connected and no cataloged history
           setSelectedFp(null);
           setComparison(null);
         }
@@ -113,7 +113,7 @@ export function ThreatIntelligence() {
     }
   }, [liveEvents]);
 
-  if (loading) return <LoadingState message="Connecting to USB Forensic Radar..." />;
+  if (loading) return <LoadingState message="Connecting to USB Forensic DNA Engine..." />;
 
   const isLiveConnected = activeLive?.is_connected || false;
   const hasProfiles = fingerprints.length > 0 || isLiveConnected;
@@ -122,39 +122,44 @@ export function ThreatIntelligence() {
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       
       {/* ══════════════════════════════════════════════════════════════════════
-          HERO BANNER & CONTROLS
+          HERO BANNER & CONTROLS (PHANTOM YELLOW & BLACK)
       ══════════════════════════════════════════════════════════════════════ */}
-      <div className="bg-[#0C0C0E]/95 border border-white/[0.08] rounded-[28px] p-6 shadow-2xl backdrop-blur-md">
+      <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 shadow-2xl">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#141418] border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
+            <div className="w-12 h-12 rounded-2xl bg-neutral-900 border border-white/[0.08] flex items-center justify-center text-[#FDE047] shrink-0 shadow-lg shadow-black/40">
               <Dna className="w-6 h-6 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-base sm:text-lg font-bold font-mono text-white tracking-wide uppercase">
-                  USB Forensic DNA & Lineage Engine
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-sm md:text-base font-bold text-white tracking-tight uppercase">
+                  Attack DNA & Forensic Hardware Engine
                 </h1>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border ${
+                <span className={`flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${
                   isLiveConnected
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                    : 'bg-white/[0.06] text-neutral-400 border-white/[0.08]'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : 'bg-white/[0.04] text-neutral-400 border-white/[0.08]'
                 }`}>
-                  {isLiveConnected ? "LIVE USB HARVEST ACTIVE" : "SURVEILLANCE LISTENING"}
+                  <span className={`w-1.5 h-1.5 rounded-full ${isLiveConnected ? 'bg-emerald-400 animate-pulse' : 'bg-neutral-500'}`} />
+                  {isLiveConnected ? "LIVE HARDWARE ATTACHED" : "SURVEILLANCE LISTENING"}
+                </span>
+                <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-white/[0.04] text-neutral-300 border border-white/[0.08]">
+                  <Radio className="w-3 h-3 text-[#FDE047]" />
+                  ZERO-TRUST PROVENANCE
                 </span>
               </div>
-              <p className="text-xs font-mono text-neutral-400 mt-1 max-w-3xl leading-relaxed">
-                Reverse-extracts 4-layer hardware silicon descriptors, filesystem superblocks, and microscopic cross-OS digital dust (.Spotlight, IndexerVolumeGuid, .Trashes) directly from physical USB drives.
+              <p className="text-xs text-neutral-400 mt-1 max-w-3xl leading-relaxed">
+                Reverse-extracts 4-layer hardware silicon descriptors, filesystem superblocks, and microscopic cross-OS digital dust (.Spotlight, IndexerVolumeGuid, .Trashes) directly from inserted USB hardware.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {/* Clear History */}
+            {/* Clear History Button */}
             {fingerprints.length > 0 && (
               <button
                 onClick={handleClearHistory}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/[0.04] hover:bg-red-500/10 hover:text-red-400 text-neutral-400 border border-white/[0.08] hover:border-red-500/30 text-xs font-mono transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/[0.04] hover:bg-red-500/10 hover:text-red-400 text-neutral-400 border border-white/[0.08] hover:border-red-500/30 text-xs font-semibold transition-all cursor-pointer"
                 title="Purge all cataloged fingerprints"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -162,39 +167,36 @@ export function ThreatIntelligence() {
               </button>
             )}
 
-            {/* Refresh */}
+            {/* Refresh Button */}
             <button
               onClick={loadData}
-              className="p-2.5 rounded-full bg-[#18181D] hover:bg-[#222228] text-neutral-300 border border-white/[0.1] transition-all cursor-pointer"
+              className="p-2.5 rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-white/[0.08] transition-all cursor-pointer"
               title="Refresh DNA Catalog"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-[#FDE047]' : ''}`} />
             </button>
-
-            {/* Hackathon Stage 2 Demo Simulator */}
-            <SimulateButton stage={2} onComplete={() => loadData()} />
           </div>
         </div>
 
         {/* Quick KPI Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-5 mt-5 border-t border-white/[0.08] font-mono text-xs">
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-            <span className="text-neutral-500 text-[10px] block uppercase">Connected Hardware</span>
-            <span className={`font-extrabold text-base ${isLiveConnected ? 'text-emerald-400' : 'text-neutral-400'}`}>
-              {isLiveConnected ? "1 Device Active" : "0 Devices (Listening)"}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-5 mt-5 border-t border-white/[0.06] text-xs">
+          <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-white/[0.04]">
+            <span className="text-neutral-500 text-[11px] block uppercase tracking-wide">Connected USB</span>
+            <span className={`font-bold text-base mt-0.5 block ${isLiveConnected ? 'text-emerald-400' : 'text-neutral-300'}`}>
+              {isLiveConnected ? "1 Device Active" : "0 Devices (Waiting)"}
             </span>
           </div>
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-            <span className="text-neutral-500 text-[10px] block uppercase">Cataloged Profiles</span>
-            <span className="text-white font-extrabold text-base">{fingerprints.length}</span>
+          <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-white/[0.04]">
+            <span className="text-neutral-500 text-[11px] block uppercase tracking-wide">Cataloged Profiles</span>
+            <span className="text-white font-bold text-base mt-0.5 block">{fingerprints.length}</span>
           </div>
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-            <span className="text-neutral-500 text-[10px] block uppercase">Genomic Extraction</span>
-            <span className="text-cyan-400 font-extrabold text-base">4 Layers / Drive</span>
+          <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-white/[0.04]">
+            <span className="text-neutral-500 text-[11px] block uppercase tracking-wide">Genomic Layers</span>
+            <span className="text-[#FDE047] font-bold text-base mt-0.5 block">4 Deep Layers</span>
           </div>
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-            <span className="text-neutral-500 text-[10px] block uppercase">Cross-Host Dust</span>
-            <span className="text-purple-400 font-extrabold text-base">Win • Mac • Linux</span>
+          <div className="p-3.5 rounded-2xl bg-neutral-900/60 border border-white/[0.04]">
+            <span className="text-neutral-500 text-[11px] block uppercase tracking-wide">Host Provenance</span>
+            <span className="text-white font-bold text-base mt-0.5 block">Win • Mac • Linux</span>
           </div>
         </div>
       </div>
@@ -204,26 +206,23 @@ export function ThreatIntelligence() {
       ══════════════════════════════════════════════════════════════════════ */}
       {!hasProfiles ? (
         /* Zero Hardware Waiting State */
-        <div className="bg-[#0C0C0E]/95 border border-white/[0.08] rounded-[32px] p-16 text-center shadow-2xl backdrop-blur-md space-y-4">
-          <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400/20" />
-            <div className="relative w-16 h-16 rounded-2xl bg-[#141418] border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.15)]">
-              <Usb className="w-8 h-8" />
-            </div>
+        <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-16 text-center shadow-2xl space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-white/[0.08] flex items-center justify-center text-[#FDE047] mx-auto shadow-lg shadow-black/40">
+            <Usb className="w-8 h-8 animate-pulse" />
           </div>
 
-          <div className="space-y-1">
-            <h3 className="text-base font-bold font-mono text-white uppercase tracking-wider">
+          <div className="space-y-1.5">
+            <h3 className="text-base font-bold text-white tracking-tight uppercase">
               No Physical USB Hardware Inserted
             </h3>
-            <p className="text-xs font-mono text-neutral-400 max-w-md mx-auto leading-relaxed">
-              Surveillance is active on all USB root hubs. Plug in any real USB flash drive to automatically extract its physical silicon descriptors, filesystem allocation tables, and cross-OS digital dust.
+            <p className="text-xs text-neutral-400 max-w-md mx-auto leading-relaxed">
+              Hardware surveillance is active on all USB root hubs. Plug in any real USB flash drive to automatically extract its controller silicon, filesystem geometry, and cross-OS digital dust.
             </p>
           </div>
 
-          <div className="pt-2 flex items-center justify-center gap-2 text-[11px] font-mono text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>ROOT_HUB_0: LISTENING FOR UDEV INSERTION EVENT</span>
+          <div className="pt-2 flex items-center justify-center gap-2 text-[11px] font-mono text-[#FDE047]">
+            <span className="w-2 h-2 rounded-full bg-[#FDE047] animate-ping" />
+            <span>ROOT_HUB_0: LISTENING FOR PHYSICAL INSERTION</span>
           </div>
         </div>
       ) : (
