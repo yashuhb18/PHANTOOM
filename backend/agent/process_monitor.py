@@ -85,7 +85,7 @@ class ProcessMonitor:
 
     # Processes that should ALWAYS be killed if spawned from USB
     ALWAYS_KILL_FROM_USB: Set[str] = {
-        "powershell.exe", "pwsh.exe", "cmd.exe",
+        "powershell.exe", "pwsh.exe", "powershell", "pwsh", "cmd.exe",
         "wscript.exe", "cscript.exe", "mshta.exe",
         "certutil.exe", "bitsadmin.exe", "rundll32.exe",
         "regsvr32.exe", "python.exe", "python3.exe",
@@ -164,10 +164,9 @@ class ProcessMonitor:
         "/etc/shadow",
     ]
 
-    # DEMO MODE: When True, PHANTOM detects and alerts but does NOT kill processes.
-    # This lets terminals actually open for hackathon demonstration while still
-    # showing all the threat detection in the UI dashboard.
-    DEMO_MODE: bool = True  # Set to False for real protection
+    # ACTIVE DEFENSE MODE: When False, PHANTOM autonomously detects, alerts, and kills
+    # the malicious/unauthorized USB process trees to stop execution immediately.
+    DEMO_MODE: bool = False
 
     def __init__(self, callback: Optional[Callable] = None):
         self.callback = callback
