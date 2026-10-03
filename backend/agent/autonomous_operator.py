@@ -348,6 +348,16 @@ class AutonomousOperatorAgent:
         Reads code or text from a file with line numbers for inspection.
         """
         clean_path = filepath.strip()
+        if "/run/media/.../" in clean_path:
+            clean_path = clean_path.replace("/run/media/.../", "/run/media/yashz/")
+        elif "/media/.../" in clean_path:
+            clean_path = clean_path.replace("/media/.../", "/run/media/yashz/")
+        elif "/run/media/..." in clean_path:
+            clean_path = clean_path.replace("/run/media/...", "/run/media/yashz")
+
+        if "KIOXIA_USB" in clean_path and "/run/media" not in clean_path and "/media" not in clean_path:
+            clean_path = re.sub(r'(?:/home/[^/\s]+/Desktop/[^/\s]+(?: [^/\s]+)*/)?KIOXIA_USB', '/run/media/yashz/KIOXIA_USB', clean_path)
+
         target = Path(clean_path)
         if not target.is_absolute():
             target = (self.workspace_root / target).resolve()
@@ -408,6 +418,16 @@ class AutonomousOperatorAgent:
         """
         logger.info(f"[TOOL: EDIT_CODE] Modifying file: {filepath}")
         clean_path = filepath.strip()
+        if "/run/media/.../" in clean_path:
+            clean_path = clean_path.replace("/run/media/.../", "/run/media/yashz/")
+        elif "/media/.../" in clean_path:
+            clean_path = clean_path.replace("/media/.../", "/run/media/yashz/")
+        elif "/run/media/..." in clean_path:
+            clean_path = clean_path.replace("/run/media/...", "/run/media/yashz")
+
+        if "KIOXIA_USB" in clean_path and "/run/media" not in clean_path and "/media" not in clean_path:
+            clean_path = re.sub(r'(?:/home/[^/\s]+/Desktop/[^/\s]+(?: [^/\s]+)*/)?KIOXIA_USB', '/run/media/yashz/KIOXIA_USB', clean_path)
+
         target = Path(clean_path)
         if not target.is_absolute():
             target = (self.workspace_root / target).resolve()
@@ -420,15 +440,42 @@ class AutonomousOperatorAgent:
         except Exception:
             pass
 
+        # If target file does not exist, auto-create it with new_code
         if not target.exists() or not target.is_file():
-            return {
-                "tool": "EDIT_CODE",
-                "success": False,
-                "filepath": str(target),
-                "filename": target.name,
-                "rel_path": rel_path,
-                "message": f"Target file does not exist: {target}"
-            }
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with open(target, "w", encoding="utf-8") as f:
+                    f.write(new_code)
+                lines_added = len(new_code.splitlines())
+                diff_lines = list(difflib.unified_diff(
+                    [],
+                    new_code.splitlines(keepends=True),
+                    fromfile="/dev/null",
+                    tofile=f"b/{rel_path}",
+                    n=3
+                ))
+                return {
+                    "tool": "EDIT_CODE",
+                    "success": True,
+                    "filepath": str(target),
+                    "filename": target.name,
+                    "rel_path": rel_path,
+                    "lines_added": lines_added,
+                    "lines_removed": 0,
+                    "diff": "".join(diff_lines),
+                    "old_code": "",
+                    "new_code": new_code,
+                    "message": f"Created new file '{rel_path}' and wrote content (+{lines_added} lines)."
+                }
+            except Exception as e:
+                return {
+                    "tool": "EDIT_CODE",
+                    "success": False,
+                    "filepath": str(target),
+                    "filename": target.name,
+                    "rel_path": rel_path,
+                    "message": f"Target file did not exist and could not be created: {str(e)}"
+                }
 
         try:
             with open(target, "r", encoding="utf-8") as f:
@@ -510,6 +557,16 @@ class AutonomousOperatorAgent:
         Calculates line counts, unified diff, and relative path for Antigravity UI telemetry.
         """
         clean_path = filepath.strip()
+        if "/run/media/.../" in clean_path:
+            clean_path = clean_path.replace("/run/media/.../", "/run/media/yashz/")
+        elif "/media/.../" in clean_path:
+            clean_path = clean_path.replace("/media/.../", "/run/media/yashz/")
+        elif "/run/media/..." in clean_path:
+            clean_path = clean_path.replace("/run/media/...", "/run/media/yashz")
+
+        if "KIOXIA_USB" in clean_path and "/run/media" not in clean_path and "/media" not in clean_path:
+            clean_path = re.sub(r'(?:/home/[^/\s]+/Desktop/[^/\s]+(?: [^/\s]+)*/)?KIOXIA_USB', '/run/media/yashz/KIOXIA_USB', clean_path)
+
         target = Path(clean_path)
         if not target.is_absolute():
             target = (self.workspace_root / target).resolve()
@@ -576,6 +633,16 @@ class AutonomousOperatorAgent:
         Lists files, sizes, and timestamps inside a directory.
         """
         clean_dir = directory.strip()
+        if "/run/media/.../" in clean_dir:
+            clean_dir = clean_dir.replace("/run/media/.../", "/run/media/yashz/")
+        elif "/media/.../" in clean_dir:
+            clean_dir = clean_dir.replace("/media/.../", "/run/media/yashz/")
+        elif "/run/media/..." in clean_dir:
+            clean_dir = clean_dir.replace("/run/media/...", "/run/media/yashz")
+
+        if "KIOXIA_USB" in clean_dir and "/run/media" not in clean_dir and "/media" not in clean_dir:
+            clean_dir = re.sub(r'(?:/home/[^/\s]+/Desktop/[^/\s]+(?: [^/\s]+)*/)?KIOXIA_USB', '/run/media/yashz/KIOXIA_USB', clean_dir)
+
         target = Path(clean_dir)
         if not target.is_absolute():
             target = (self.workspace_root / target).resolve()
