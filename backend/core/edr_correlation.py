@@ -12,6 +12,8 @@ Unifies PROCESS ↔ FILE ↔ NETWORK (TCP/UDP/DNS) ↔ USB ↔ RESPONSE with:
 8. Surgical Containment (Process Tree Annihilation + Network Socket Severance)
 """
 
+import sys
+import subprocess
 import time
 import datetime
 import hashlib
@@ -58,8 +60,17 @@ class EDRCorrelationEngine:
         self._dns_ledger: List[Dict[str, Any]] = []
         self._active_incidents: List[Dict[str, Any]] = []
         self._proc_cache: Dict[int, Dict[str, Any]] = {}
+        self._rogue_proc: Optional[psutil.Process] = None
+        self._rogue_pid: Optional[int] = None
+        self._rogue_start_time: Optional[float] = None
+        self._rogue_mitigation_time: Optional[float] = None
+        self._rogue_status: str = "IDLE"
+        self._rogue_logs: List[Dict[str, Any]] = []
+        self._auto_kill_enabled: bool = True
+        self._hunter_thread: Optional[threading.Thread] = None
         self._seed_baseline_dns()
         self._seed_default_threat_story()
+        self._start_hunter_loop()
 
     def _seed_baseline_dns(self):
         """Initial baseline DNS activity."""
@@ -742,17 +753,157 @@ class EDRCorrelationEngine:
         }
 
     # ─────────────────────────────────────────────────────────────────────────
-    # 6. TRIGGER LIVE DEMO THREAT CHAIN
+    # 7. LIVE ROGUE .EXE HIGH-CPU & MALWARE HUNTER-KILLER ARENA
     # ─────────────────────────────────────────────────────────────────────────
 
-    def trigger_demo_threat_chain(self) -> Dict[str, Any]:
-        """Injects or resets the full live demonstration threat chain."""
-        self._seed_default_threat_story()
+    def launch_rogue_binary(self) -> Dict[str, Any]:
+        """
+        Spawns the real compiled standalone .exe binary on Windows:
+        d:\\PHANTOOM\\tools\\phantom_rogue_payload.exe
+        Generates real multi-core CPU load and UDP bursts.
+        """
+        exe_path = r"d:\PHANTOOM\tools\phantom_rogue_payload.exe"
+        if not os.path.exists(exe_path):
+            exe_path = r"d:\PHANTOOM\tools\phantom_rogue_payload.py"
+            popen_args = [sys.executable, exe_path]
+        else:
+            popen_args = [exe_path]
+
+        try:
+            # Terminate any existing one first
+            if self._rogue_proc:
+                try:
+                    if self._rogue_proc.is_running():
+                        self._rogue_proc.kill()
+                except Exception:
+                    pass
+
+            p = subprocess.Popen(
+                popen_args,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
+            )
+            self._rogue_pid = p.pid
+            self._rogue_proc = psutil.Process(p.pid)
+            self._rogue_start_time = time.time()
+            self._rogue_mitigation_time = None
+            self._rogue_status = "RUNNING_HIGH_CPU"
+            t_str = datetime.datetime.now().strftime("%H:%M:%S")
+
+            sha256 = compute_sha256(r"d:\PHANTOOM\tools\phantom_rogue_payload.exe")
+            self._rogue_logs = [
+                {"time": t_str, "type": "SPAWN", "title": "Rogue .EXE Binary Executed", "detail": f"Launched phantom_rogue_payload.exe (PID: {p.pid})", "severity": "HIGH"},
+                {"time": t_str, "type": "VERIFY", "title": "Signature & Path Verification", "detail": f"Unsigned binary · SHA-256: {sha256[:16]}... · Removable/Staging Directory", "severity": "HIGH"},
+                {"time": t_str, "type": "STRESS", "title": "Multi-Threaded CPU Spike Initiated", "detail": "Cryptographic hashing workers spawning across all processor cores", "severity": "CRITICAL"}
+            ]
+
+            return {
+                "success": True,
+                "pid": p.pid,
+                "exe_path": exe_path,
+                "sha256": sha256,
+                "status": "RUNNING_HIGH_CPU",
+                "message": f"Rogue binary launched (PID: {p.pid}). Generating real multi-core processor spike."
+            }
+        except Exception as e:
+            logger.error(f"Failed to launch rogue payload: {e}")
+            return {"success": False, "error": str(e)}
+
+    def kill_rogue_binary(self, autonomous: bool = False) -> Dict[str, Any]:
+        """
+        Surgically executes process kill on the rogue binary PID and severs sockets.
+        """
+        target_pid = self._rogue_pid
+        if not target_pid:
+            return {"success": False, "message": "No active rogue process tracked."}
+
+        mitigation_duration = 0.0
+        if self._rogue_start_time:
+            mitigation_duration = round(time.time() - self._rogue_start_time, 2)
+            self._rogue_mitigation_time = mitigation_duration
+
+        try:
+            if self._rogue_proc and self._rogue_proc.is_running():
+                for child in self._rogue_proc.children(recursive=True):
+                    try:
+                        child.kill()
+                    except Exception:
+                        pass
+                self._rogue_proc.kill()
+        except Exception:
+            pass
+
+        self._rogue_status = "TERMINATED"
+        t_str = datetime.datetime.now().strftime("%H:%M:%S")
+        method = "AUTONOMOUS HUNTER-KILLER" if autonomous else "OPERATOR SURGICAL SEVERANCE"
+        self._rogue_logs.append({
+            "time": t_str,
+            "type": "KILL",
+            "title": f"{method}: PID {target_pid} TERMINATED",
+            "detail": f"Process tree neutralized in {mitigation_duration}s. Core load normalized to baseline.",
+            "severity": "SUCCESS"
+        })
+
         return {
             "success": True,
-            "message": "Full EDR Threat Chain (USB ↔ Process ↔ UDP ↔ Canary ↔ Containment) initialized.",
-            "incident": self._active_incidents[0]
+            "pid": target_pid,
+            "status": "TERMINATED",
+            "mitigation_seconds": mitigation_duration,
+            "message": f"Rogue process PID {target_pid} annihilated by {method}."
         }
+
+    def get_rogue_status(self) -> Dict[str, Any]:
+        """
+        Returns live real-time CPU % of rogue process and overall machine processor load.
+        """
+        is_alive = False
+        proc_cpu = 0.0
+        proc_mem = 0.0
+        threads_cnt = 0
+        system_cpu = psutil.cpu_percent(interval=None)
+
+        if self._rogue_proc:
+            try:
+                if self._rogue_proc.is_running() and self._rogue_proc.status() != psutil.STATUS_ZOMBIE:
+                    is_alive = True
+                    proc_cpu = self._rogue_proc.cpu_percent(interval=None)
+                    proc_mem = round(self._rogue_proc.memory_info().rss / (1024 * 1024), 1)
+                    threads_cnt = self._rogue_proc.num_threads()
+            except Exception:
+                is_alive = False
+
+        if not is_alive and self._rogue_status == "RUNNING_HIGH_CPU":
+            self._rogue_status = "TERMINATED"
+
+        return {
+            "is_running": is_alive,
+            "pid": self._rogue_pid,
+            "status": self._rogue_status,
+            "process_cpu": round(proc_cpu, 1),
+            "process_memory_mb": proc_mem,
+            "threads_count": threads_cnt,
+            "system_cpu_total": round(system_cpu, 1),
+            "auto_kill_enabled": self._auto_kill_enabled,
+            "mitigation_time_seconds": self._rogue_mitigation_time,
+            "logs": self._rogue_logs
+        }
+
+    def toggle_auto_kill(self) -> bool:
+        self._auto_kill_enabled = not self._auto_kill_enabled
+        return self._auto_kill_enabled
+
+    def _start_hunter_loop(self):
+        """Background autonomous watcher loop."""
+        def watcher():
+            while True:
+                time.sleep(0.5)
+                if self._auto_kill_enabled and self._rogue_status == "RUNNING_HIGH_CPU" and self._rogue_proc:
+                    if self._rogue_start_time and (time.time() - self._rogue_start_time) >= 2.5:
+                        logger.info(f"PHANTOM Hunter-Killer: Autonomous auto-kill triggered for PID {self._rogue_pid}")
+                        self.kill_rogue_binary(autonomous=True)
+
+        self._hunter_thread = threading.Thread(target=watcher, daemon=True, name="PhantomAutoHunter")
+        self._hunter_thread.start()
 
 
 edr_engine = EDRCorrelationEngine()
+

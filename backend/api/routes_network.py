@@ -207,3 +207,28 @@ def trigger_edr_demo_chain():
     """Initializes or resets the full live demonstration threat chain."""
     return edr_engine.trigger_demo_threat_chain()
 
+
+@router.post("/edr/launch-rogue-exe")
+def launch_rogue_binary():
+    """Spawns the real compiled rogue .exe binary on Windows generating real multi-core CPU load."""
+    return edr_engine.launch_rogue_binary()
+
+
+@router.get("/edr/rogue-status")
+def get_rogue_binary_status():
+    """Returns live real-time CPU % of rogue binary, system load, and hunter logs."""
+    return edr_engine.get_rogue_status()
+
+
+@router.post("/edr/kill-rogue-exe")
+def kill_rogue_binary():
+    """Surgically kills the rogue .exe process tree and restores baseline CPU."""
+    return edr_engine.kill_rogue_binary(autonomous=False)
+
+
+@router.post("/edr/toggle-auto-kill")
+def toggle_auto_kill():
+    """Toggles autonomous auto-kill mode for the hunter-killer agent."""
+    is_auto = edr_engine.toggle_auto_kill()
+    return {"auto_kill_enabled": is_auto}
+

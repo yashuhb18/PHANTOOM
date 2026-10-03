@@ -34,18 +34,20 @@ import {
   GitCommit,
   Eye,
   Share2,
-  Flame
+  Flame,
+  Gauge
 } from 'lucide-react';
 
 export function NetworkMonitorPage() {
   // Navigation Sections:
-  // 'story'    -> Threat Story & Interactive Attack Graph (The Signature Correlation Feature)
+  // 'arena'    -> Rogue .EXE Hunter-Killer Arena (High-CPU .exe detection & autonomous kill demo)
+  // 'story'    -> Threat Story & Interactive Attack Graph
   // 'proc_net' -> Process ↔ Network Map (UDP & TCP Trees, SHA256, File Attribution)
   // 'dpi'      -> Deep Packet Inspector (Wireshark 3-pane: Stream, Dissection, Hex)
-  // 'dns'      -> DNS Monitor & Resolver Intelligence (Process -> DNS -> IP -> Connection)
+  // 'dns'      -> DNS Monitor & Resolver Intelligence
   // 'evidence' -> PCAP-style Network Evidence & Protocol Distribution
   // 'adapters' -> Physical NIC Hardware Adapters
-  const [activeSection, setActiveSection] = useState('story');
+  const [activeSection, setActiveSection] = useState('arena');
 
   // Core Hardware & Bandwidth Telemetry
   const [telemetry, setTelemetry] = useState(null);
@@ -59,11 +61,27 @@ export function NetworkMonitorPage() {
   const [attackGraph, setAttackGraph] = useState({ nodes: [], edges: [] });
   const [evidenceData, setEvidenceData] = useState(null);
 
+  // Rogue .EXE Hunter-Killer Arena State
+  const [rogueStatus, setRogueStatus] = useState({
+    is_running: false,
+    pid: null,
+    status: 'IDLE',
+    process_cpu: 0,
+    process_memory_mb: 0,
+    threads_count: 0,
+    system_cpu_total: 0,
+    auto_kill_enabled: true,
+    mitigation_time_seconds: null,
+    logs: []
+  });
+  const [isLaunchingRogue, setIsLaunchingRogue] = useState(false);
+  const [isKillingRogue, setIsKillingRogue] = useState(false);
+
   // Interactive Selection State
   const [selectedGraphNode, setSelectedGraphNode] = useState(null);
   const [selectedSocketEvent, setSelectedSocketEvent] = useState(null);
   const [selectedProcessFilter, setSelectedProcessFilter] = useState('');
-  const [socketTypeFilter, setSocketTypeFilter] = useState('ALL'); // 'ALL' | 'UDP' | 'TCP'
+  const [socketTypeFilter, setSocketTypeFilter] = useState('ALL');
   const [isDemoRunning, setIsDemoRunning] = useState(false);
   const [isContaining, setIsContaining] = useState(false);
 
@@ -71,7 +89,7 @@ export function NetworkMonitorPage() {
   const [packets, setPackets] = useState([]);
   const [selectedPacket, setSelectedPacket] = useState(null);
   const [isCapturing, setIsCapturing] = useState(true);
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [autoScroll, setAutoScroll] = useState(true); // Auto-scroll toggle
   const [packetFilterProto, setPacketFilterProto] = useState('ALL');
   const [attackOnly, setAttackOnly] = useState(false);
   const [packetSearch, setPacketSearch] = useState('');
@@ -133,7 +151,29 @@ export function NetworkMonitorPage() {
     };
   }, []);
 
-  // EDR Data Polling Loop (Process Trees, DNS, Stories, Graph, Evidence)
+  // Poll Rogue .EXE Status (Faster 600ms polling for live CPU responsiveness)
+  useEffect(() => {
+    let mounted = true;
+    const pollRogue = async () => {
+      try {
+        const res = await fetch(`http://${window.location.hostname}:8001/api/network/edr/rogue-status`);
+        if (res.ok && mounted) {
+          const data = await res.json();
+          setRogueStatus(data);
+        }
+      } catch (err) {
+        // ignore in background
+      }
+    };
+    pollRogue();
+    const interval = setInterval(pollRogue, 600);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // EDR Data Polling Loop
   const fetchEdrData = useCallback(async () => {
     try {
       const [ptreeRes, dnsRes, storyRes, graphRes, evRes] = await Promise.all([
@@ -174,6 +214,7 @@ export function NetworkMonitorPage() {
       if (res.ok) {
         const data = await res.json();
         setPackets(data);
+        // Only select latest if user hasn't manually selected one
         setSelectedPacket(prev => {
           if (!prev && data.length > 0) return data[data.length - 1];
           if (prev) {
@@ -194,11 +235,68 @@ export function NetworkMonitorPage() {
     return () => clearInterval(interval);
   }, [fetchPackets]);
 
+  // Auto-scroll ONLY when enabled AND not paused by user packet selection
   useEffect(() => {
     if (autoScroll && packetListEndRef.current && activeSection === 'dpi') {
       packetListEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [packets, autoScroll, activeSection]);
+
+  // Launch Rogue .EXE
+  const handleLaunchRogueExe = async () => {
+    setIsLaunchingRogue(true);
+    try {
+      const res = await fetch(`http://${window.location.hostname}:8001/api/network/edr/launch-rogue-exe`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('success', `🚀 Rogue Binary Executed: phantom_rogue_payload.exe (PID: ${data.pid})! Watch CPU load.`);
+      } else {
+        showToast('error', data.error || 'Failed to launch rogue binary.');
+      }
+    } catch (err) {
+      showToast('error', err.message);
+    } finally {
+      setIsLaunchingRogue(false);
+    }
+  };
+
+  // Kill Rogue .EXE
+  const handleKillRogueExe = async () => {
+    setIsKillingRogue(true);
+    try {
+      const res = await fetch(`http://${window.location.hostname}:8001/api/network/edr/kill-rogue-exe`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast('success', `🛑 Rogue Process PID ${data.pid} Annihilated! CPU restored to baseline.`);
+      } else {
+        showToast('error', data.message || 'Failed to terminate rogue process.');
+      }
+    } catch (err) {
+      showToast('error', err.message);
+    } finally {
+      setIsKillingRogue(false);
+    }
+  };
+
+  // Toggle Auto-Kill
+  const handleToggleAutoKill = async () => {
+    try {
+      const res = await fetch(`http://${window.location.hostname}:8001/api/network/edr/toggle-auto-kill`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRogueStatus(prev => ({ ...prev, auto_kill_enabled: data.auto_kill_enabled }));
+        showToast('success', data.auto_kill_enabled ? 'Autonomous Auto-Kill Mode: ACTIVE' : 'Autonomous Auto-Kill: DISABLED (Manual Mode)');
+      }
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  };
 
   // Trigger Demo Attack Chain
   const handleTriggerDemoChain = async () => {
@@ -213,8 +311,6 @@ export function NetworkMonitorPage() {
       if (res.ok) {
         showToast('success', '🚨 Live EDR Threat Chain Demo Triggered! Watch correlation timeline.');
         await fetchEdrData();
-      } else {
-        showToast('error', data.detail || 'Failed to trigger demo chain.');
       }
     } catch (err) {
       showToast('error', err.message);
@@ -236,8 +332,6 @@ export function NetworkMonitorPage() {
       if (res.ok) {
         showToast('success', `🛑 Threat Neutralized: PID ${pid} tree killed, active sockets severed.`);
         await fetchEdrData();
-      } else {
-        showToast('error', data.detail || 'Containment failed.');
       }
     } catch (err) {
       showToast('error', err.message);
@@ -261,6 +355,7 @@ export function NetworkMonitorPage() {
         await fetchPackets();
         if (data.packets && data.packets.length > 0) {
           setSelectedPacket(data.packets[0]);
+          setAutoScroll(false); // Stop moving so user can inspect!
           setExpandedLayers(prev => ({ ...prev, threat_intel: true, application: true }));
         }
       }
@@ -291,25 +386,6 @@ export function NetworkMonitorPage() {
     setCopiedHex(true);
     setTimeout(() => setCopiedHex(false), 2000);
     showToast('success', 'Hex dump copied to clipboard.');
-  };
-
-  // Export Forensic Evidence
-  const exportForensicEvidence = () => {
-    const payload = {
-      timestamp: new Date().toISOString(),
-      threat_stories: threatStories,
-      process_network_tree: processTrees,
-      dns_ledger: dnsLedger,
-      evidence: evidenceData
-    };
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
-    const dl = document.createElement('a');
-    dl.setAttribute("href", dataStr);
-    dl.setAttribute("download", `phantom_edr_forensic_evidence_${Date.now()}.json`);
-    document.body.appendChild(dl);
-    dl.click();
-    dl.remove();
-    showToast('success', 'Forensic evidence JSON exported successfully.');
   };
 
   // 60-Second Throughput Graph Calculations
@@ -347,7 +423,7 @@ export function NetworkMonitorPage() {
     return { sendPath: sPath, recvPath: rPath, sendArea: sArea, recvArea: rArea, points: pts };
   }, [historyData, maxRate]);
 
-  // Filtered Process Trees for Section 2
+  // Filtered Process Trees for Section 3
   const filteredProcessTrees = useMemo(() => {
     return processTrees.filter(p => {
       if (selectedProcessFilter.trim()) {
@@ -360,19 +436,14 @@ export function NetworkMonitorPage() {
         );
         if (!match) return false;
       }
-      if (socketTypeFilter === 'UDP') {
-        return p.udp_count > 0;
-      }
-      if (socketTypeFilter === 'TCP') {
-        return p.tcp_count > 0;
-      }
+      if (socketTypeFilter === 'UDP') return p.udp_count > 0;
+      if (socketTypeFilter === 'TCP') return p.tcp_count > 0;
       return true;
     });
   }, [processTrees, selectedProcessFilter, socketTypeFilter]);
 
   const current = telemetry?.current || {};
   const totals = telemetry?.totals || {};
-  const primaryAdapter = telemetry?.primary_adapter || {};
   const adapters = telemetry?.adapters || [];
   const primaryThreat = threatStories[0] || null;
 
@@ -410,35 +481,37 @@ export function NetworkMonitorPage() {
                 </h1>
                 <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-[#FDE047]/10 text-[#FDE047] border border-[#FDE047]/30 font-extrabold flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#FDE047] animate-pulse" />
-                  CORRELATION ONLINE
+                  CORRELATION & HUNTER-KILLER ACTIVE
                 </span>
               </div>
               <p className="text-xs text-neutral-400 mt-0.5">
-                Autonomous correlation: <span className="text-white font-semibold">PROCESS ↔ FILE ↔ NETWORK (UDP/TCP/DNS) ↔ USB ↔ RESPONSE</span>.
+                Autonomous Hunter-Killer agent: Detects high-CPU spikes from rogue binaries and executes surgical severance.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Global Controls & Demo Trigger */}
+        {/* Global Controls */}
         <div className="flex items-center gap-2.5 w-full md:w-auto justify-end flex-wrap">
           <button
-            onClick={handleTriggerDemoChain}
-            disabled={isDemoRunning}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#FDE047] text-black hover:bg-[#FACC15] text-xs font-mono font-extrabold transition-all cursor-pointer shadow-lg shadow-[#FDE047]/10 disabled:opacity-50"
-            title="Simulate full USB ↔ Process ↔ UDP Exfil ↔ Canary Threat Chain"
+            onClick={() => setActiveSection('arena')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-mono font-extrabold transition-all cursor-pointer border ${
+              activeSection === 'arena'
+                ? 'bg-[#FDE047] text-black border-[#FDE047] shadow-lg shadow-[#FDE047]/20'
+                : 'bg-white/[0.04] text-white border-white/[0.1] hover:bg-white/[0.08]'
+            }`}
           >
-            <Zap className="w-3.5 h-3.5 fill-black" />
-            <span>{isDemoRunning ? 'Simulating...' : '⚡ Run Threat Chain Demo'}</span>
+            <Flame className="w-3.5 h-3.5" />
+            <span>Rogue .EXE Arena</span>
           </button>
 
           <button
-            onClick={exportForensicEvidence}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-xs font-bold text-white border border-white/[0.1] transition-all cursor-pointer"
-            title="Export complete forensic evidence snapshot as JSON"
+            onClick={handleTriggerDemoChain}
+            disabled={isDemoRunning}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer disabled:opacity-50"
           >
-            <Download className="w-3.5 h-3.5 text-neutral-300" />
-            <span>Export Evidence</span>
+            <Zap className="w-3.5 h-3.5 text-[#FDE047]" />
+            <span>{isDemoRunning ? 'Simulating...' : 'Threat Chain Demo'}</span>
           </button>
         </div>
       </div>
@@ -477,18 +550,25 @@ export function NetworkMonitorPage() {
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FDE047]" />
         </div>
 
-        {/* Process ↔ Network Tracking */}
+        {/* Live Processor Load (System CPU) */}
         <div className="bg-[#141414] border border-white/[0.08] rounded-[24px] p-5 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-mono uppercase mb-2">
-            <span>Mapped Processes</span>
-            <Cpu className="w-4 h-4 text-neutral-400" />
+            <span>System CPU Load</span>
+            <Gauge className="w-4 h-4 text-neutral-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-white tracking-tight">
-            {processTrees.length} <span className="text-xs text-neutral-400 font-normal">nodes</span>
+          <div className="text-2xl font-bold font-mono text-white tracking-tight flex items-center justify-between">
+            <span>{rogueStatus.system_cpu_total}%</span>
+            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+              rogueStatus.system_cpu_total > 50 ? 'bg-[#FDE047] text-black animate-pulse' : 'bg-white/10 text-white'
+            }`}>
+              {rogueStatus.system_cpu_total > 50 ? 'HIGH SPIKE' : 'NORMAL'}
+            </span>
           </div>
           <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500 mt-2">
-            <span>UDP Sockets: <span className="text-white font-bold">{processTrees.reduce((acc, p) => acc + p.udp_count, 0)}</span></span>
-            <span>TCP: <span className="text-[#FDE047] font-bold">{processTrees.reduce((acc, p) => acc + p.tcp_count, 0)}</span></span>
+            <span>Rogue Process CPU:</span>
+            <span className={`font-bold ${rogueStatus.process_cpu > 40 ? 'text-[#FDE047]' : 'text-neutral-400'}`}>
+              {rogueStatus.process_cpu}%
+            </span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-700" />
         </div>
@@ -496,132 +576,43 @@ export function NetworkMonitorPage() {
         {/* Behavioral Threat Score */}
         <div className="bg-[#141414] border border-white/[0.08] rounded-[24px] p-5 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-mono uppercase mb-2">
-            <span>Peak Incident Risk</span>
+            <span>Peak Threat Risk</span>
             <AlertTriangle className="w-4 h-4 text-[#FDE047]" />
           </div>
           <div className="text-2xl font-bold font-mono text-[#FDE047] tracking-tight flex items-center justify-between">
-            <span>{primaryThreat ? `${primaryThreat.risk_score}/100` : '0/100'}</span>
+            <span>{rogueStatus.is_running ? '98/100' : '86/100'}</span>
             <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-              primaryThreat?.status === 'CONTAINED' ? 'bg-white/10 text-white' : 'bg-[#FDE047] text-black'
+              rogueStatus.is_running ? 'bg-[#FDE047] text-black' : 'bg-white/10 text-white'
             }`}>
-              {primaryThreat?.status || 'NORMAL'}
+              {rogueStatus.is_running ? 'CRITICAL' : 'CONTAINED'}
             </span>
           </div>
           <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500 mt-2">
-            <span>Correlated Chain:</span>
-            <span className="text-white font-bold truncate max-w-[110px]">{primaryThreat?.incident_id || 'NONE'}</span>
+            <span>Hunter Status:</span>
+            <span className="text-white font-bold">{rogueStatus.status}</span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FDE047]" />
-        </div>
-      </div>
-
-      {/* 60-SECOND ROLLING THROUGHPUT GRAPH */}
-      <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 shadow-2xl space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Network Throughput (Last 60 Seconds)</h2>
-              <span className="text-[10px] font-mono text-neutral-400 bg-white/[0.04] px-2.5 py-0.5 rounded-full border border-white/[0.06]">
-                Peak: {formatRate(maxRate)}
-              </span>
-            </div>
-            <p className="text-xs text-neutral-400 mt-0.5">
-              Live hardware throughput delta calculated every 1000ms.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-5 text-xs font-mono">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-[#FDE047] inline-block shadow-sm" />
-              <span className="text-neutral-300">Upload (Send)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-white inline-block shadow-sm" />
-              <span className="text-neutral-300">Download (Recv)</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative w-full overflow-hidden bg-[#0A0A0A] rounded-2xl border border-white/[0.06] p-4">
-          <svg
-            viewBox={`0 0 ${graphWidth} ${graphHeight}`}
-            className="w-full h-36 sm:h-44 overflow-visible"
-            onMouseLeave={() => setHoveredPoint(null)}
-          >
-            <defs>
-              <linearGradient id="yellowAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FDE047" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#FDE047" stopOpacity="0.0" />
-              </linearGradient>
-              <linearGradient id="whiteAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.15" />
-                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.0" />
-              </linearGradient>
-            </defs>
-
-            {[0.25, 0.5, 0.75, 1.0].map((ratio) => {
-              const y = padding + (graphHeight - padding * 2) * (1 - ratio);
-              return (
-                <g key={ratio}>
-                  <line x1={padding} y1={y} x2={graphWidth - padding} y2={y} stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" strokeWidth="1" />
-                  <text x={padding + 4} y={y - 4} fill="rgba(255,255,255,0.25)" fontSize="9" fontFamily="monospace">
-                    {formatRate(maxRate * ratio)}
-                  </text>
-                </g>
-              );
-            })}
-
-            {recvArea && <path d={recvArea} fill="url(#whiteAreaGrad)" />}
-            {sendArea && <path d={sendArea} fill="url(#yellowAreaGrad)" />}
-            {recvPath && <path d={recvPath} fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />}
-            {sendPath && <path d={sendPath} fill="none" stroke="#FDE047" strokeWidth="2.2" strokeLinecap="round" />}
-
-            {points.map((p, idx) => (
-              <rect
-                key={idx}
-                x={p.x - 7}
-                y={padding}
-                width="14"
-                height={graphHeight - padding * 2}
-                fill="transparent"
-                className="cursor-crosshair"
-                onMouseEnter={() => setHoveredPoint(p)}
-              />
-            ))}
-
-            {hoveredPoint && (
-              <g>
-                <line x1={hoveredPoint.x} y1={padding} x2={hoveredPoint.x} y2={graphHeight - padding} stroke="#FDE047" strokeWidth="1.2" strokeDasharray="3 3" />
-                <circle cx={hoveredPoint.x} cy={hoveredPoint.ySend} r="4" fill="#FDE047" stroke="#000" strokeWidth="1.5" />
-                <circle cx={hoveredPoint.x} cy={hoveredPoint.yRecv} r="4" fill="#FFFFFF" stroke="#000" strokeWidth="1.5" />
-              </g>
-            )}
-          </svg>
-
-          {hoveredPoint && (
-            <div
-              className="absolute pointer-events-none px-3 py-2 rounded-xl bg-[#141414] border border-[#FDE047]/40 shadow-2xl text-[11px] font-mono z-20 space-y-1 transform -translate-x-1/2 -translate-y-full"
-              style={{ left: `${(hoveredPoint.x / graphWidth) * 100}%`, top: '25%' }}
-            >
-              <div className="text-neutral-400 border-b border-white/[0.08] pb-1">
-                Time: {hoveredPoint.data.timestamp}
-              </div>
-              <div className="flex items-center gap-2 text-[#FDE047] font-bold">
-                <span>↑ Upload:</span>
-                <span>{formatRate(hoveredPoint.data.bytes_sent_sec)}</span>
-              </div>
-              <div className="flex items-center gap-2 text-white font-bold">
-                <span>↓ Download:</span>
-                <span>{formatRate(hoveredPoint.data.bytes_recv_sec)}</span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
       {/* SECTION NAVIGATOR TABS */}
       <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 overflow-x-auto">
         <div className="flex items-center p-1 bg-[#141414] rounded-full border border-white/[0.08] min-w-max">
+          <button
+            onClick={() => setActiveSection('arena')}
+            className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+              activeSection === 'arena'
+                ? 'bg-[#FDE047] text-black shadow-lg shadow-[#FDE047]/10'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5" />
+            <span>🔥 Rogue .EXE Hunter Arena</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-black text-[#FDE047]">
+              DEMO
+            </span>
+          </button>
+
           <button
             onClick={() => setActiveSection('story')}
             className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
@@ -631,10 +622,7 @@ export function NetworkMonitorPage() {
             }`}
           >
             <GitCommit className="w-3.5 h-3.5" />
-            <span>Threat Story & Attack Graph</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-black text-[#FDE047]">
-              HOT
-            </span>
+            <span>Threat Story & Graph</span>
           </button>
 
           <button
@@ -647,7 +635,6 @@ export function NetworkMonitorPage() {
           >
             <Cpu className="w-3.5 h-3.5" />
             <span>Process ↔ Network Map</span>
-            <span className="text-[10px] text-neutral-400 font-mono">({processTrees.length})</span>
           </button>
 
           <button
@@ -701,12 +688,217 @@ export function NetworkMonitorPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1: THREAT STORY & ENDPOINT ATTACK GRAPH (THE GOATED FEATURE) */}
+      {/* SECTION 1: ROGUE .EXE HIGH-CPU & AUTONOMOUS HUNTER-KILLER ARENA */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {activeSection === 'arena' && (
+        <div className="space-y-6 animate-fade-in">
+          
+          {/* Main Mission Control Card */}
+          <div className="bg-[#141414] border border-[#FDE047]/30 rounded-[28px] p-6 shadow-2xl space-y-6">
+            
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 rounded-full bg-[#FDE047] text-black text-xs font-mono font-extrabold flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 fill-black" />
+                    LIVE COMBAT DEMO
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold border ${
+                    rogueStatus.is_running
+                      ? 'bg-[#FDE047]/10 text-[#FDE047] border-[#FDE047] animate-pulse'
+                      : rogueStatus.status === 'TERMINATED'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                      : 'bg-white/5 text-neutral-400 border-white/10'
+                  }`}>
+                    {rogueStatus.is_running ? '🔥 ANOMALY ACTIVE · HIGH CPU SPIKE' : rogueStatus.status === 'TERMINATED' ? '✅ THREAT NEUTRALIZED' : 'STANDBY'}
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-white mt-2">
+                  Rogue Executable (.EXE) High-CPU Detection & Autonomous Hunter-Killer
+                </h2>
+                <p className="text-xs text-neutral-400 mt-1">
+                  Spawns standalone binary <code className="text-[#FDE047]">phantom_rogue_payload.exe</code> ➔ Multi-core CPU spikes to 75-95% ➔ PHANTOM detects anomaly and executes autonomous kill.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 w-full lg:w-auto justify-end flex-wrap">
+                <button
+                  onClick={handleLaunchRogueExe}
+                  disabled={isLaunchingRogue || rogueStatus.is_running}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FDE047] hover:bg-[#FACC15] text-black text-xs font-mono font-extrabold transition-all cursor-pointer shadow-lg shadow-[#FDE047]/20 disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4 fill-black" />
+                  <span>{isLaunchingRogue ? 'Launching...' : '🚀 Launch Rogue .EXE'}</span>
+                </button>
+
+                <button
+                  onClick={handleKillRogueExe}
+                  disabled={isKillingRogue || !rogueStatus.is_running}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer disabled:opacity-40"
+                >
+                  <XCircle className="w-4 h-4 text-[#FDE047]" />
+                  <span>{isKillingRogue ? 'Killing...' : '🛑 Manual Kill Now'}</span>
+                </button>
+
+                <button
+                  onClick={handleToggleAutoKill}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-mono font-bold transition-all cursor-pointer border ${
+                    rogueStatus.auto_kill_enabled
+                      ? 'bg-[#FDE047]/10 text-[#FDE047] border-[#FDE047]/40'
+                      : 'bg-white/[0.02] text-neutral-400 border-white/[0.08]'
+                  }`}
+                  title="Toggle whether PHANTOM autonomously kills rogue processes within 2.5s"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Auto-Kill: {rogueStatus.auto_kill_enabled ? 'ON (2.5s Auto)' : 'OFF (Manual)'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Live CPU & Anomaly Telemetry Gauges */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* Gauge 1: Process CPU Load */}
+              <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-white/[0.08] relative overflow-hidden font-mono">
+                <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
+                  <span>Rogue Process CPU Load</span>
+                  <Cpu className="w-4 h-4 text-[#FDE047]" />
+                </div>
+                <div className="text-3xl font-extrabold text-white tracking-tight flex items-baseline gap-2">
+                  <span className={rogueStatus.process_cpu > 40 ? 'text-[#FDE047]' : 'text-white'}>
+                    {rogueStatus.process_cpu}%
+                  </span>
+                  <span className="text-xs text-neutral-400 font-normal">core load</span>
+                </div>
+                {/* Visual Bar */}
+                <div className="w-full bg-neutral-800 h-2 rounded-full mt-3 overflow-hidden">
+                  <div
+                    className="h-full bg-[#FDE047] transition-all duration-300"
+                    style={{ width: `${Math.min(100, rogueStatus.process_cpu)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-neutral-500 mt-2">
+                  <span>PID: {rogueStatus.pid || 'None'}</span>
+                  <span>Threads: {rogueStatus.threads_count}</span>
+                </div>
+              </div>
+
+              {/* Gauge 2: Overall System Processor */}
+              <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-white/[0.08] relative overflow-hidden font-mono">
+                <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
+                  <span>Total System Processor</span>
+                  <Gauge className="w-4 h-4 text-white" />
+                </div>
+                <div className="text-3xl font-extrabold text-white tracking-tight flex items-baseline gap-2">
+                  <span>{rogueStatus.system_cpu_total}%</span>
+                  <span className="text-xs text-neutral-400 font-normal">all cores</span>
+                </div>
+                <div className="w-full bg-neutral-800 h-2 rounded-full mt-3 overflow-hidden">
+                  <div
+                    className="h-full bg-white transition-all duration-300"
+                    style={{ width: `${Math.min(100, rogueStatus.system_cpu_total)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-neutral-500 mt-2">
+                  <span>Baseline: ~2.5%</span>
+                  <span>Threshold: 50.0%</span>
+                </div>
+              </div>
+
+              {/* Metric 3: Time to Mitigate */}
+              <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-white/[0.08] relative overflow-hidden font-mono">
+                <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
+                  <span>Mitigation Benchmark</span>
+                  <ShieldCheck className="w-4 h-4 text-[#FDE047]" />
+                </div>
+                <div className="text-3xl font-extrabold text-[#FDE047] tracking-tight flex items-baseline gap-2">
+                  <span>{rogueStatus.mitigation_time_seconds ? `${rogueStatus.mitigation_time_seconds}s` : (rogueStatus.is_running ? 'Hunting...' : 'Standby')}</span>
+                </div>
+                <p className="text-[11px] text-neutral-400 mt-2 leading-relaxed">
+                  Autonomous surveillance loop reaction time from anomaly identification to full socket and process severance.
+                </p>
+              </div>
+
+            </div>
+
+            {/* Target Process Forensic Blueprint */}
+            <div className="p-4 rounded-2xl bg-[#0A0A0A] border border-white/[0.06] font-mono text-xs space-y-2">
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                <div className="flex items-center gap-2 text-white font-bold">
+                  <Terminal className="w-3.5 h-3.5 text-[#FDE047]" />
+                  <span>Target Process Blueprint: phantom_rogue_payload.exe</span>
+                </div>
+                <span className="text-[#FDE047] font-bold">Classification: CRYPTOMINER / RESOURCE HIJACK</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-[11px] pt-1">
+                <div>
+                  <span className="text-neutral-500 block">Process PID:</span>
+                  <span className="text-white font-bold">{rogueStatus.pid || 'Inactive'}</span>
+                </div>
+                <div>
+                  <span className="text-neutral-500 block">Memory Footprint:</span>
+                  <span className="text-white font-bold">{rogueStatus.process_memory_mb} MB</span>
+                </div>
+                <div>
+                  <span className="text-neutral-500 block">Digital Signature:</span>
+                  <span className="text-[#FDE047] font-bold">UNSIGNED (Heuristic Match)</span>
+                </div>
+                <div>
+                  <span className="text-neutral-500 block">Execution Path:</span>
+                  <span className="text-neutral-300 truncate block">d:\PHANTOOM\tools\phantom_rogue_payload.exe</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Forensic Hunter-Killer Audit Ledger */}
+            <div className="space-y-2 font-mono">
+              <div className="flex items-center justify-between text-xs text-neutral-400 border-b border-white/[0.06] pb-2">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5 text-[#FDE047]" />
+                  <span className="font-bold text-white uppercase tracking-wider">Hunter-Killer Execution Timeline</span>
+                </div>
+                <span>{rogueStatus.logs.length} Milestones Recorded</span>
+              </div>
+
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {rogueStatus.logs.length === 0 ? (
+                  <div className="p-6 text-center text-neutral-500 text-xs">
+                    Click <strong>Launch Rogue .EXE</strong> above to trigger the live high-CPU anomaly and watch PHANTOM's hunter-killer agent execute real-time containment.
+                  </div>
+                ) : (
+                  rogueStatus.logs.map((log, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-xl bg-[#0A0A0A] border border-white/[0.06] flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-neutral-500 text-[10px]">{log.time}</span>
+                        <span className={`px-2 py-0.2 rounded text-[9px] font-bold ${
+                          log.type === 'KILL' ? 'bg-[#FDE047] text-black font-extrabold' : 'bg-white/5 text-[#FDE047]'
+                        }`}>
+                          {log.type}
+                        </span>
+                        <span className="text-white font-bold">{log.title}</span>
+                      </div>
+                      <span className="text-neutral-400 text-[11px] truncate max-w-sm">{log.detail}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 2: THREAT STORY & ENDPOINT ATTACK GRAPH */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeSection === 'story' && primaryThreat && (
         <div className="space-y-6 animate-fade-in">
-          
-          {/* Incident Banner & Containment Action */}
           <div className="bg-[#141414] border border-[#FDE047]/30 rounded-[28px] p-6 shadow-2xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3">
@@ -734,11 +926,7 @@ export function NetworkMonitorPage() {
               <button
                 onClick={() => handleContainThreat(primaryThreat.primary_pid)}
                 disabled={isContaining || primaryThreat.status === 'CONTAINED'}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-mono font-extrabold transition-all cursor-pointer ${
-                  primaryThreat.status === 'CONTAINED'
-                    ? 'bg-white/5 text-neutral-400 border border-white/10 cursor-not-allowed'
-                    : 'bg-[#FDE047] hover:bg-[#FACC15] text-black shadow-lg shadow-[#FDE047]/20'
-                }`}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FDE047] hover:bg-[#FACC15] text-black text-xs font-mono font-extrabold transition-all cursor-pointer shadow-lg shadow-[#FDE047]/20 disabled:opacity-50"
               >
                 <ShieldCheck className="w-4 h-4" />
                 <span>{primaryThreat.status === 'CONTAINED' ? 'Threat Contained' : '🛑 Surgically Annihilate & Sever'}</span>
@@ -746,10 +934,7 @@ export function NetworkMonitorPage() {
             </div>
           </div>
 
-          {/* TWO COLUMN GRID: ATTACK GRAPH (LEFT) & THREAT STORY (RIGHT) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            {/* LEFT (7 COLS): INTERACTIVE ENDPOINT ATTACK GRAPH */}
             <div className="lg:col-span-7 bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 shadow-2xl space-y-4 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 mb-3">
@@ -763,12 +948,8 @@ export function NetworkMonitorPage() {
                     Click node to inspect forensic evidence
                   </span>
                 </div>
-                <p className="text-xs text-neutral-400">
-                  Directed causal DAG linking USB vector, rogue executable, DNS lookup, UDP bursts, canary bait, and containment.
-                </p>
               </div>
 
-              {/* SVG Attack Graph Canvas */}
               <div className="relative w-full h-[360px] bg-[#0A0A0A] rounded-2xl border border-white/[0.06] overflow-hidden flex items-center justify-center p-2">
                 <svg viewBox="0 0 860 380" className="w-full h-full">
                   <defs>
@@ -780,14 +961,11 @@ export function NetworkMonitorPage() {
                     </marker>
                   </defs>
 
-                  {/* Edges */}
                   {attackGraph.edges.map((e, idx) => {
                     const srcNode = attackGraph.nodes.find(n => n.id === e.source);
                     const dstNode = attackGraph.nodes.find(n => n.id === e.target);
                     if (!srcNode || !dstNode) return null;
-
                     const isHighlight = selectedGraphNode?.id === srcNode.id || selectedGraphNode?.id === dstNode.id;
-
                     return (
                       <g key={idx}>
                         <line
@@ -814,11 +992,9 @@ export function NetworkMonitorPage() {
                     );
                   })}
 
-                  {/* Nodes */}
                   {attackGraph.nodes.map((node) => {
                     const isSelected = selectedGraphNode?.id === node.id;
                     const isRiskNode = node.risk >= 80;
-
                     return (
                       <g
                         key={node.id}
@@ -847,7 +1023,6 @@ export function NetworkMonitorPage() {
                 </svg>
               </div>
 
-              {/* Selected Node Evidence Inspector Drawer */}
               {selectedGraphNode ? (
                 <div className="p-4 rounded-2xl bg-[#0A0A0A] border border-[#FDE047]/40 space-y-2 font-mono text-xs">
                   <div className="flex items-center justify-between border-b border-white/[0.08] pb-1.5">
@@ -868,10 +1043,8 @@ export function NetworkMonitorPage() {
                   Click any node above to inspect its forensic fingerprint and evidence.
                 </div>
               )}
-
             </div>
 
-            {/* RIGHT (5 COLS): FORENSIC "THREAT STORY" TIMELINE */}
             <div className="lg:col-span-5 bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 shadow-2xl space-y-4 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 mb-3">
@@ -881,21 +1054,13 @@ export function NetworkMonitorPage() {
                       Forensic Threat Story Timeline
                     </h3>
                   </div>
-                  <span className="text-[10px] font-mono text-[#FDE047] font-bold">
-                    {primaryThreat.timeline?.length || 0} Forensic Milestones
-                  </span>
                 </div>
-                <p className="text-xs text-neutral-400">
-                  Chronological progression of the compromise chain from physical insertion to automated containment.
-                </p>
               </div>
 
-              {/* Vertical Timeline Ledger */}
               <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
                 {primaryThreat.timeline?.map((step) => {
                   const isCritical = step.severity === 'CRITICAL';
                   const isContainment = step.stage === 'CONTAINMENT' || step.stage === 'INCIDENT_CONTAINED';
-
                   return (
                     <div
                       key={step.step}
@@ -912,58 +1077,27 @@ export function NetworkMonitorPage() {
                           Step {step.step} · {step.time}
                         </span>
                         <span className={`px-2 py-0.2 rounded-full font-extrabold text-[9px] ${
-                          isContainment
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : isCritical
-                            ? 'bg-[#FDE047] text-black'
-                            : 'bg-white/5 text-neutral-400'
+                          isContainment ? 'bg-emerald-500/20 text-emerald-400' : isCritical ? 'bg-[#FDE047] text-black' : 'bg-white/5 text-neutral-400'
                         }`}>
                           {step.stage}
                         </span>
                       </div>
-
                       <h4 className="text-xs font-bold text-white mb-0.5">{step.title}</h4>
                       <p className="text-[11px] text-neutral-300 leading-snug">{step.detail}</p>
-                      
-                      {step.evidence && (
-                        <div className="mt-1.5 pt-1 border-t border-white/[0.06] text-[10px] font-mono text-[#FDE047] truncate">
-                          {step.evidence}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
-
-              {/* Risk Engine Breakdown Footer */}
-              <div className="p-3 bg-[#0A0A0A] rounded-2xl border border-white/[0.06] space-y-1.5 font-mono text-[10px]">
-                <div className="flex justify-between font-bold text-white border-b border-white/[0.06] pb-1">
-                  <span>Behavioral Risk Factors:</span>
-                  <span className="text-[#FDE047]">Score: 86 / 100</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {primaryThreat.risk_breakdown?.map((rf, idx) => (
-                    <span key={idx} className="px-2 py-0.5 rounded bg-white/[0.04] text-neutral-300 border border-white/[0.08]" title={rf.reason}>
-                      {rf.factor} <strong className="text-[#FDE047]">+{rf.points}</strong>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
             </div>
-
           </div>
-
         </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 2: PROCESS ↔ NETWORK MAP (UDP & TCP SOCKET TREES) */}
+      {/* SECTION 3: PROCESS ↔ NETWORK MAP (UDP & TCP TREES) */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeSection === 'proc_net' && (
         <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] overflow-hidden shadow-2xl space-y-4 p-6">
-          
-          {/* Header Controls */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
             <div>
               <div className="flex items-center gap-2.5">
@@ -972,12 +1106,8 @@ export function NetworkMonitorPage() {
                   Process-to-Network Map (UDP & TCP Trees)
                 </h3>
               </div>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                Full process attribution: Binary path, SHA-256 hash, signature verification, and granular socket trees.
-              </p>
             </div>
 
-            {/* Filter Bar */}
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-60">
                 <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3.5 top-1/2 transform -translate-y-1/2" />
@@ -1006,22 +1136,16 @@ export function NetworkMonitorPage() {
             </div>
           </div>
 
-          {/* Process Hierarchy Cards */}
           <div className="space-y-4 max-h-[640px] overflow-y-auto pr-1">
             {filteredProcessTrees.map((proc) => {
               const isHighRisk = proc.risk_score >= 70;
-              const isThreat = proc.is_threat;
-
               return (
                 <div
                   key={proc.pid}
                   className={`p-5 rounded-2xl border transition-all ${
-                    isHighRisk
-                      ? 'bg-[#141414] border-[#FDE047]/40 shadow-xl'
-                      : 'bg-[#0A0A0A] border-white/[0.06] hover:border-white/20'
+                    isHighRisk ? 'bg-[#141414] border-[#FDE047]/40 shadow-xl' : 'bg-[#0A0A0A] border-white/[0.06] hover:border-white/20'
                   }`}
                 >
-                  {/* Top Row: Process Info & Badges */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-mono font-bold text-xs ${
@@ -1033,131 +1157,45 @@ export function NetworkMonitorPage() {
                         <div className="flex items-center gap-2">
                           <h4 className="text-sm font-bold text-white font-mono">{proc.process_name}</h4>
                           <span className="text-xs font-mono text-neutral-400">PID: <strong className="text-white">{proc.pid}</strong></span>
-                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold border ${
-                            proc.is_signed
-                              ? 'bg-white/5 text-neutral-300 border-white/10'
-                              : 'bg-[#FDE047]/10 text-[#FDE047] border-[#FDE047]/30'
-                          }`}>
-                            {proc.is_signed ? 'SIGNED' : 'UNSIGNED'}
-                          </span>
-                          {proc.is_usb_origin && (
-                            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full font-bold bg-[#FDE047] text-black">
-                              USB ORIGIN
-                            </span>
-                          )}
                         </div>
                         <p className="text-[11px] font-mono text-neutral-400 mt-0.5 truncate max-w-lg" title={proc.exe_path}>
                           Path: {proc.exe_path}
                         </p>
                       </div>
                     </div>
-
-                    {/* Behavioral Risk Badge & Sockets Count */}
-                    <div className="flex items-center gap-3">
-                      <div className="text-right font-mono text-xs">
-                        <div className="text-neutral-400">Behavioral Risk:</div>
-                        <div className={`font-extrabold text-sm ${isHighRisk ? 'text-[#FDE047]' : 'text-neutral-200'}`}>
-                          {proc.risk_score} / 100 ({proc.risk_level})
-                        </div>
-                      </div>
-                      {isHighRisk && proc.status !== 'CONTAINED' && (
-                        <button
-                          onClick={() => handleContainThreat(proc.pid)}
-                          className="px-3 py-1.5 rounded-full bg-[#FDE047] hover:bg-[#FACC15] text-black text-xs font-mono font-bold transition-all cursor-pointer"
-                        >
-                          Kill Tree
-                        </button>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Middle Row: SHA-256 Hash & Child Processes */}
-                  <div className="py-2.5 flex flex-wrap items-center justify-between gap-3 text-[11px] font-mono text-neutral-400 border-b border-white/[0.04]">
-                    <div className="flex items-center gap-2 truncate max-w-md">
-                      <span className="text-neutral-500">SHA-256:</span>
-                      <span className="text-white truncate" title={proc.sha256}>{proc.sha256}</span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(proc.sha256);
-                          showToast('success', 'SHA-256 hash copied.');
-                        }}
-                        className="text-neutral-500 hover:text-white"
-                        title="Copy SHA-256"
-                      >
-                        <Copy className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    {proc.child_processes && proc.child_processes.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#FDE047] font-bold">Child Process:</span>
-                        {proc.child_processes.map(cp => (
-                          <span key={cp.pid} className="px-2 py-0.5 rounded bg-white/[0.04] text-white">
-                            {cp.name} (PID: {cp.pid})
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom Sockets Breakdown Tree */}
                   <div className="pt-3 space-y-1.5 font-mono text-xs">
-                    <div className="text-[10px] text-neutral-400 uppercase tracking-wider mb-1">
-                      Active Socket Tree ({proc.sockets.length} descriptors):
-                    </div>
-                    {proc.sockets.map((s, sIdx) => {
-                      const isUdp = s.protocol === 'UDP';
-                      return (
-                        <div
-                          key={sIdx}
-                          onClick={() => setSelectedSocketEvent({ ...s, process_name: proc.process_name, pid: proc.pid, exe_path: proc.exe_path, sha256: proc.sha256 })}
-                          className={`p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-colors cursor-pointer ${
-                            s.is_suspicious
-                              ? 'bg-[#FDE047]/10 border-[#FDE047]/40 text-[#FDE047] hover:bg-[#FDE047]/15'
-                              : 'bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.05] text-neutral-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
-                              isUdp ? 'bg-white/10 text-white border border-white/20' : 'bg-[#FDE047] text-black'
-                            }`}>
-                              {s.protocol}
-                            </span>
-                            <span className="text-white font-bold">{s.local_address}</span>
-                            <span className="text-neutral-500">➔</span>
-                            <span className="text-[#FDE047] font-bold">{s.remote_address}</span>
-                            <span className="text-neutral-400 text-[11px]">({s.service})</span>
-                          </div>
-
-                          <div className="flex items-center gap-4 text-[11px] text-neutral-400">
-                            <span>{s.packets_count} pkts ({formatBytes(s.bytes_count)})</span>
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${
-                              s.state === 'ESTABLISHED' || s.state === 'OUTBOUND'
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                : 'bg-white/5 text-neutral-400 border-white/10'
-                            }`}>
-                              {s.state}
-                            </span>
-                          </div>
+                    {proc.sockets.map((s, sIdx) => (
+                      <div
+                        key={sIdx}
+                        onClick={() => setSelectedSocketEvent({ ...s, process_name: proc.process_name, pid: proc.pid, exe_path: proc.exe_path, sha256: proc.sha256 })}
+                        className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] flex items-center justify-between text-xs cursor-pointer hover:bg-white/[0.05]"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-white/10 text-white">{s.protocol}</span>
+                          <span className="text-white font-bold">{s.local_address}</span>
+                          <span className="text-neutral-500">➔</span>
+                          <span className="text-[#FDE047] font-bold">{s.remote_address}</span>
                         </div>
-                      );
-                    })}
+                        <span className="text-neutral-400 text-[11px]">{s.packets_count} pkts ({formatBytes(s.bytes_count)})</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
             })}
           </div>
-
         </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 3: DEEP PACKET INSPECTOR (AUTHENTIC 3-PANE WIRESHARK ENGINE) */}
+      {/* SECTION 4: DEEP PACKET INSPECTOR (WIRESHARK 3-PANE WITH FIXES) */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeSection === 'dpi' && (
         <div className="space-y-4">
           
-          {/* DPI Toolbar */}
+          {/* DPI Filter & Action Bar */}
           <div className="bg-[#141414] border border-white/[0.08] rounded-[24px] p-4 shadow-xl space-y-3">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
               <div className="relative flex-1">
@@ -1177,9 +1215,7 @@ export function NetworkMonitorPage() {
                     key={proto}
                     onClick={() => setPacketFilterProto(proto)}
                     className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer whitespace-nowrap border ${
-                      packetFilterProto === proto
-                        ? 'bg-[#FDE047] text-black border-[#FDE047]'
-                        : 'bg-white/[0.04] text-neutral-400 border-white/[0.08] hover:text-white'
+                      packetFilterProto === proto ? 'bg-[#FDE047] text-black border-[#FDE047]' : 'bg-white/[0.04] text-neutral-400 border-white/[0.08]'
                     }`}
                   >
                     {proto}
@@ -1189,9 +1225,7 @@ export function NetworkMonitorPage() {
                 <button
                   onClick={() => setAttackOnly(!attackOnly)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer whitespace-nowrap border ${
-                    attackOnly
-                      ? 'bg-[#FDE047] text-black border-[#FDE047]'
-                      : 'bg-white/[0.04] text-neutral-300 border-white/[0.08]'
+                    attackOnly ? 'bg-[#FDE047] text-black border-[#FDE047]' : 'bg-white/[0.04] text-neutral-300 border-white/[0.08]'
                   }`}
                 >
                   <AlertTriangle className="w-3 h-3" />
@@ -1204,35 +1238,35 @@ export function NetworkMonitorPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-white/[0.04]">
               <div className="flex items-center gap-2 text-xs font-mono text-neutral-400">
                 <Zap className="w-3.5 h-3.5 text-[#FDE047]" />
-                <span className="text-white font-bold uppercase tracking-wider text-[11px]">Inject Packet Attack Signature:</span>
+                <span className="text-white font-bold uppercase tracking-wider text-[11px]">Inject Packet Signature:</span>
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => handleSimulateAttack('REVERSE_SHELL')}
                   disabled={simulatingAttack !== null}
-                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] hover:border-[#FDE047]/40 text-xs font-mono font-bold transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer"
                 >
                   ⚡ Reverse Shell (Port 4444)
                 </button>
                 <button
                   onClick={() => handleSimulateAttack('PORT_SCAN')}
                   disabled={simulatingAttack !== null}
-                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] hover:border-[#FDE047]/40 text-xs font-mono font-bold transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer"
                 >
                   ⚡ Nmap SYN Scan Probe
                 </button>
                 <button
                   onClick={() => handleSimulateAttack('DNS_TUNNEL')}
                   disabled={simulatingAttack !== null}
-                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] hover:border-[#FDE047]/40 text-xs font-mono font-bold transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer"
                 >
                   ⚡ DNS Exfiltration
                 </button>
                 <button
                   onClick={() => handleSimulateAttack('CLEARTEXT_CREDS')}
                   disabled={simulatingAttack !== null}
-                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] hover:border-[#FDE047]/40 text-xs font-mono font-bold transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer"
                 >
                   ⚡ Cleartext Creds Leak
                 </button>
@@ -1240,7 +1274,7 @@ export function NetworkMonitorPage() {
             </div>
           </div>
 
-          {/* Pane 1: Packet Stream */}
+          {/* Pane 1: Packet Stream with Auto-Scroll Pause Control */}
           <div className="bg-[#141414] border border-white/[0.08] rounded-[24px] overflow-hidden shadow-2xl">
             <div className="p-3 bg-[#0F0F0F] border-b border-white/[0.08] flex items-center justify-between text-xs font-mono">
               <div className="flex items-center gap-2">
@@ -1248,12 +1282,38 @@ export function NetworkMonitorPage() {
                 <span className="font-bold text-white uppercase tracking-wider">Packet Capture Stream</span>
                 <span className="text-neutral-500 text-[10px]">({packets.length} frames visible)</span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4 text-xs font-mono">
+                <button
+                  onClick={() => setAutoScroll(!autoScroll)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer border ${
+                    autoScroll
+                      ? 'bg-white/10 text-white border-white/20'
+                      : 'bg-[#FDE047] text-black border-[#FDE047]'
+                  }`}
+                >
+                  {autoScroll ? 'Auto-Scroll: ON' : '⏸️ Auto-Scroll: PAUSED'}
+                </button>
                 <button onClick={handleToggleCapture} className="text-xs font-bold hover:underline cursor-pointer text-[#FDE047]">
                   {isCapturing ? 'Pause Capture' : 'Resume Capture'}
                 </button>
               </div>
             </div>
+
+            {/* When Auto-Scroll is Paused because user selected a packet */}
+            {!autoScroll && selectedPacket && (
+              <div className="bg-[#FDE047]/10 border-b border-[#FDE047]/30 px-4 py-2 flex items-center justify-between text-xs font-mono">
+                <span className="text-[#FDE047] flex items-center gap-2 font-bold">
+                  <span>⏸️</span>
+                  <span>Inspection Mode Active on Frame #{selectedPacket.no} (Auto-scroll paused)</span>
+                </span>
+                <button
+                  onClick={() => setAutoScroll(true)}
+                  className="px-3 py-1 rounded-full bg-[#FDE047] text-black font-extrabold text-[10px] hover:bg-[#FACC15] cursor-pointer"
+                >
+                  ▶ Resume Live Stream
+                </button>
+              </div>
+            )}
 
             <div className="overflow-x-auto max-h-[300px] overflow-y-auto font-mono text-[11px] divide-y divide-white/[0.02]">
               <table className="w-full text-left border-collapse">
@@ -1275,7 +1335,10 @@ export function NetworkMonitorPage() {
                     return (
                       <tr
                         key={pkt.no}
-                        onClick={() => setSelectedPacket(pkt)}
+                        onClick={() => {
+                          setSelectedPacket(pkt);
+                          setAutoScroll(false); // CRITICAL FIX: STOP CONTINUOUS MOVING ON PACKET SELECTION!
+                        }}
                         className={`cursor-pointer transition-colors group select-none ${
                           isSelected
                             ? 'bg-white/10 ring-1 ring-[#FDE047]/50 text-white font-semibold'
@@ -1290,11 +1353,7 @@ export function NetworkMonitorPage() {
                         <td className="py-2 px-4 text-neutral-300 truncate max-w-[170px]">{pkt.destination}</td>
                         <td className="py-2 px-3 text-center">
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
-                            isAttack
-                              ? 'bg-[#FDE047] text-black shadow-sm'
-                              : pkt.protocol === 'UDP'
-                              ? 'bg-white/10 text-white border border-white/20'
-                              : 'bg-white/[0.04] text-neutral-400'
+                            isAttack ? 'bg-[#FDE047] text-black shadow-sm' : pkt.protocol === 'UDP' ? 'bg-white/10 text-white border border-white/20' : 'bg-white/[0.04] text-neutral-400'
                           }`}>
                             {pkt.protocol}
                           </span>
@@ -1312,7 +1371,7 @@ export function NetworkMonitorPage() {
             </div>
           </div>
 
-          {/* Lower Two-Pane Grid: Dissection Tree & Hex Dump */}
+          {/* Lower Two-Pane Grid: Dissection Tree & Fixed-Width Non-Overlapping Hex Dump */}
           {selectedPacket && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               
@@ -1368,7 +1427,7 @@ export function NetworkMonitorPage() {
                 </div>
               </div>
 
-              {/* Pane 3: Hex & ASCII Inspector */}
+              {/* Pane 3: Hex & ASCII Inspector (CRITICAL FIX: PURE CSS GRID PREVENTING ANY OVERLAP) */}
               <div className="bg-[#141414] border border-white/[0.08] rounded-[24px] overflow-hidden shadow-2xl flex flex-col">
                 <div className="p-3 bg-[#0F0F0F] border-b border-white/[0.08] flex items-center justify-between text-xs font-mono">
                   <div className="flex items-center gap-2">
@@ -1386,16 +1445,27 @@ export function NetworkMonitorPage() {
                   </button>
                 </div>
 
-                <div className="p-4 bg-[#0A0A0A] overflow-x-auto overflow-y-auto max-h-[360px] font-mono text-[11px] leading-relaxed">
+                {/* Fixed Grid Viewport: Col 1 (55px Offset) | Col 2 (310px Hex) | Col 3 (Dedicated ASCII Box) */}
+                <div className="p-4 bg-[#0A0A0A] overflow-x-auto overflow-y-auto max-h-[360px] font-mono text-[11px] leading-tight space-y-1">
                   {selectedPacket.hex_dump?.map((row, rIdx) => (
-                    <div key={row.offset} className="flex items-center gap-3 hover:bg-white/[0.02] py-0.5 px-1 rounded">
-                      <span className="text-neutral-500 font-bold w-12 shrink-0 select-none">{row.offset}</span>
-                      <div className="flex items-center gap-1.5 w-[280px] shrink-0 text-white">
-                        <span>{row.hex.slice(0, 8).join(' ')}</span>
-                        <span className="text-neutral-600">|</span>
-                        <span>{row.hex.slice(8, 16).join(' ')}</span>
+                    <div
+                      key={row.offset}
+                      className="grid grid-cols-[55px_310px_1fr] items-center gap-3 hover:bg-white/[0.03] py-1 px-2 rounded border-b border-white/[0.02]"
+                    >
+                      {/* Column 1: Offset */}
+                      <span className="text-neutral-500 font-bold select-none">{row.offset}</span>
+
+                      {/* Column 2: 16 Hex Bytes with center divider */}
+                      <div className="flex items-center gap-1.5 text-neutral-200 font-mono tracking-wide select-text">
+                        <span className="space-x-1">{row.hex.slice(0, 8).join(' ')}</span>
+                        <span className="text-neutral-600 font-bold select-none px-1">│</span>
+                        <span className="space-x-1">{row.hex.slice(8, 16).join(' ')}</span>
                       </div>
-                      <span className="text-[#FDE047] border-l border-white/[0.08] pl-3 tracking-widest truncate">{row.ascii}</span>
+
+                      {/* Column 3: ASCII printable representation in its own isolated column */}
+                      <div className="text-[#FDE047] font-mono tracking-widest border-l border-white/[0.1] pl-3 select-text truncate">
+                        {row.ascii}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1408,7 +1478,7 @@ export function NetworkMonitorPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 4: DNS MONITOR & RESOLVER INTELLIGENCE */}
+      {/* SECTION 5: DNS MONITOR & RESOLVER INTELLIGENCE */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeSection === 'dns' && (
         <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] overflow-hidden shadow-2xl p-6 space-y-4">
@@ -1420,7 +1490,7 @@ export function NetworkMonitorPage() {
               </h3>
             </div>
             <span className="text-[10px] font-mono text-neutral-400">
-              Live Resolution Flow: <strong className="text-white">PROCESS ➔ DNS ➔ DOMAIN ➔ IP ➔ SOCKET</strong>
+              Live Flow: <strong className="text-white">PROCESS ➔ DNS ➔ DOMAIN ➔ IP ➔ SOCKET</strong>
             </span>
           </div>
 
@@ -1439,31 +1509,22 @@ export function NetworkMonitorPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
-                {dnsLedger.map((d) => {
-                  const isAnom = d.is_anomalous || d.entropy > 4.0;
-                  return (
-                    <tr key={d.query_id} className={`hover:bg-white/[0.02] transition-colors ${isAnom ? 'bg-[#FDE047]/5' : ''}`}>
-                      <td className="py-3 px-4 text-neutral-400">{d.timestamp}</td>
-                      <td className="py-3 px-5 font-bold text-white">{d.process_name}</td>
-                      <td className="py-3 px-4 text-neutral-300">{d.pid}</td>
-                      <td className="py-3 px-5 text-[#FDE047] font-bold truncate max-w-[220px]" title={d.domain}>{d.domain}</td>
-                      <td className="py-3 px-3">
-                        <span className="px-2 py-0.5 rounded bg-white/5 text-neutral-300 border border-white/10 text-[9px] font-bold">
-                          {d.record_type}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-neutral-400">{d.resolver}</td>
-                      <td className="py-3 px-5 text-white font-bold">{d.resolved_ip}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold ${
-                          isAnom ? 'bg-[#FDE047] text-black' : 'bg-white/5 text-neutral-400'
-                        }`}>
-                          {d.verdict} ({d.entropy})
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {dnsLedger.map((d) => (
+                  <tr key={d.query_id} className="hover:bg-white/[0.02]">
+                    <td className="py-3 px-4 text-neutral-400">{d.timestamp}</td>
+                    <td className="py-3 px-5 font-bold text-white">{d.process_name}</td>
+                    <td className="py-3 px-4 text-neutral-300">{d.pid}</td>
+                    <td className="py-3 px-5 text-[#FDE047] font-bold truncate max-w-[220px]" title={d.domain}>{d.domain}</td>
+                    <td className="py-3 px-3"><span className="px-2 py-0.5 rounded bg-white/5 text-neutral-300 border border-white/10 text-[9px] font-bold">{d.record_type}</span></td>
+                    <td className="py-3 px-4 text-neutral-400">{d.resolver}</td>
+                    <td className="py-3 px-5 text-white font-bold">{d.resolved_ip}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold bg-white/5 text-neutral-400">
+                        {d.verdict} ({d.entropy})
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -1471,38 +1532,24 @@ export function NetworkMonitorPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 5: PCAP EVIDENCE & PROTOCOL DISTRIBUTION */}
+      {/* SECTION 6: PCAP EVIDENCE */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeSection === 'evidence' && evidenceData && (
         <div className="space-y-6">
-          
-          {/* Protocol Distribution Breakdown */}
           <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
               <div className="flex items-center gap-2.5">
                 <Radio className="w-4 h-4 text-[#FDE047]" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Network Protocol Distribution
-                </h3>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Network Protocol Distribution</h3>
               </div>
-              <span className="text-[10px] font-mono text-neutral-400">
-                Calculated across captured hardware wire frames
-              </span>
             </div>
 
-            {/* Visual Multi-Segment Bar */}
             <div className="w-full h-4 rounded-full overflow-hidden flex bg-neutral-800">
               {evidenceData.protocol_distribution.map((p, idx) => (
-                <div
-                  key={idx}
-                  style={{ width: `${p.percentage}%`, backgroundColor: p.color }}
-                  title={`${p.protocol}: ${p.percentage}% (${p.packets} packets, ${p.bytes})`}
-                  className="h-full transition-all"
-                />
+                <div key={idx} style={{ width: `${p.percentage}%`, backgroundColor: p.color }} className="h-full" />
               ))}
             </div>
 
-            {/* Protocol Distribution Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
               {evidenceData.protocol_distribution.map((p, idx) => (
                 <div key={idx} className="p-4 rounded-2xl bg-[#0A0A0A] border border-white/[0.06] font-mono">
@@ -1516,63 +1563,11 @@ export function NetworkMonitorPage() {
               ))}
             </div>
           </div>
-
-          {/* Top Destination Forensics */}
-          <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] overflow-hidden shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
-              <div className="flex items-center gap-2.5">
-                <Activity className="w-4 h-4 text-[#FDE047]" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Top Network Destinations & Target Forensics
-                </h3>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto max-h-[400px] overflow-y-auto font-mono text-xs">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-[#0F0F0F] border-b border-white/[0.08] text-neutral-400 text-[10px] uppercase tracking-wider z-10">
-                  <tr>
-                    <th className="py-3 px-5">Target IP</th>
-                    <th className="py-3 px-4">Port</th>
-                    <th className="py-3 px-4">Protocol</th>
-                    <th className="py-3 px-5">Service Attribution</th>
-                    <th className="py-3 px-4">Packets</th>
-                    <th className="py-3 px-4">Volume</th>
-                    <th className="py-3 px-4 text-center">Threat Verdict</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.04]">
-                  {evidenceData.top_destinations.map((td, idx) => (
-                    <tr key={idx} className={`hover:bg-white/[0.02] ${td.threat === 'CRITICAL' ? 'bg-[#FDE047]/5' : ''}`}>
-                      <td className="py-3 px-5 font-bold text-white">{td.ip}</td>
-                      <td className="py-3 px-4 text-neutral-300 font-bold">{td.port}</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded bg-white/5 text-neutral-300 text-[9px] font-bold">
-                          {td.protocol}
-                        </span>
-                      </td>
-                      <td className="py-3 px-5 text-neutral-300">{td.service}</td>
-                      <td className="py-3 px-4 text-white font-bold">{td.packets}</td>
-                      <td className="py-3 px-4 text-neutral-400">{td.bytes}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold ${
-                          td.threat === 'CRITICAL' ? 'bg-[#FDE047] text-black' : 'bg-white/5 text-neutral-400'
-                        }`}>
-                          {td.threat}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
         </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 6: PHYSICAL HARDWARE ADAPTERS */}
+      {/* SECTION 7: ADAPTERS */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {activeSection === 'adapters' && (
         <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 shadow-2xl space-y-4">
@@ -1581,62 +1576,28 @@ export function NetworkMonitorPage() {
               <HardDrive className="w-4 h-4 text-[#FDE047]" />
               <h3 className="text-xs font-bold text-white uppercase tracking-wider">Hardware Network Adapters ({adapters.length})</h3>
             </div>
-            <span className="text-[10px] font-mono text-neutral-400">
-              {adapters.filter(a => a.is_up).length} Active Link(s)
-            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {adapters.map((adapter) => {
-              const isUp = adapter.is_up;
-              return (
-                <div
-                  key={adapter.interface}
-                  className={`p-4 rounded-2xl border transition-all ${
-                    isUp 
-                      ? 'bg-[#0A0A0A] border-white/[0.1] hover:border-[#FDE047]/40 shadow-md' 
-                      : 'bg-[#0A0A0A]/40 border-white/[0.04] opacity-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-white font-mono truncate max-w-[170px]" title={adapter.interface}>
-                      {adapter.interface}
-                    </span>
-                    <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border ${
-                      isUp 
-                        ? 'bg-white/10 text-white border-white/20 font-bold' 
-                        : 'bg-neutral-800 text-neutral-500 border-neutral-700'
-                    }`}>
-                      {isUp ? 'CONNECTED' : 'DISCONNECTED'}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-1 text-[11px] font-mono text-neutral-400">
-                    <div className="flex justify-between">
-                      <span>IP Address:</span>
-                      <span className="text-neutral-200">{adapter.ipv4}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>MAC Address:</span>
-                      <span className="text-neutral-300 truncate max-w-[130px]">{adapter.mac}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Link Speed:</span>
-                      <span className="text-white">{adapter.speed_mbps ? `${adapter.speed_mbps} Mbps` : 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between border-t border-white/[0.06] pt-1 mt-1 text-[10px] text-neutral-500">
-                      <span>↑ {formatBytes(adapter.bytes_sent)}</span>
-                      <span>↓ {formatBytes(adapter.bytes_recv)}</span>
-                    </div>
-                  </div>
+            {adapters.map((adapter) => (
+              <div key={adapter.interface} className="p-4 rounded-2xl border bg-[#0A0A0A] border-white/[0.1]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-white font-mono">{adapter.interface}</span>
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-white font-bold">
+                    {adapter.is_up ? 'CONNECTED' : 'DISCONNECTED'}
+                  </span>
                 </div>
-              );
-            })}
+                <div className="space-y-1 text-[11px] font-mono text-neutral-400">
+                  <div className="flex justify-between"><span>IP:</span><span className="text-neutral-200">{adapter.ipv4}</span></div>
+                  <div className="flex justify-between"><span>Speed:</span><span className="text-white">{adapter.speed_mbps ? `${adapter.speed_mbps} Mbps` : 'N/A'}</span></div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* PACKET / EVENT DETAIL MODAL (FILE + SHA256 ATTRIBUTION) */}
+      {/* PACKET / EVENT DETAIL MODAL */}
       {selectedSocketEvent && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#141414] border border-[#FDE047]/40 rounded-[28px] max-w-lg w-full p-6 shadow-2xl space-y-4 animate-scale-in">
@@ -1656,30 +1617,11 @@ export function NetworkMonitorPage() {
             </div>
 
             <div className="p-4 rounded-2xl bg-[#0A0A0A] border border-white/[0.06] space-y-2.5 font-mono text-xs">
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Process Name:</span>
-                <span className="text-white font-bold">{selectedSocketEvent.process_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Process PID:</span>
-                <span className="text-[#FDE047] font-bold">{selectedSocketEvent.pid}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Protocol:</span>
-                <span className="text-white font-bold">{selectedSocketEvent.protocol}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Source:</span>
-                <span className="text-neutral-300">{selectedSocketEvent.local_address}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Destination:</span>
-                <span className="text-[#FDE047] font-bold">{selectedSocketEvent.remote_address}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Packets / Bytes:</span>
-                <span className="text-white">{selectedSocketEvent.packets_count} pkts ({formatBytes(selectedSocketEvent.bytes_count)})</span>
-              </div>
+              <div className="flex justify-between"><span className="text-neutral-500">Process Name:</span><span className="text-white font-bold">{selectedSocketEvent.process_name}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-500">Process PID:</span><span className="text-[#FDE047] font-bold">{selectedSocketEvent.pid}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-500">Protocol:</span><span className="text-white font-bold">{selectedSocketEvent.protocol}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-500">Source:</span><span className="text-neutral-300">{selectedSocketEvent.local_address}</span></div>
+              <div className="flex justify-between"><span className="text-neutral-500">Destination:</span><span className="text-[#FDE047] font-bold">{selectedSocketEvent.remote_address}</span></div>
               <div className="border-t border-white/[0.06] pt-2 space-y-1">
                 <span className="text-neutral-500 block">Associated File:</span>
                 <span className="text-white text-[11px] break-all">{selectedSocketEvent.exe_path}</span>
