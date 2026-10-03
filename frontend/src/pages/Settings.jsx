@@ -82,7 +82,7 @@ export function Settings() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wide">Local AI Reasoning Engine (Qwen 2.5 Coder)</h3>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wide">Local AI Reasoning Engine (Babar Jamali DeepSeek 1.5B Cyber)</h3>
                 <span className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border ${
                   aiStatus?.status === 'online'
                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
@@ -112,7 +112,7 @@ export function Settings() {
           <div className="p-4 rounded-2xl bg-[#0F0F0F] border border-white/[0.04]">
             <span className="text-[10px] font-mono text-neutral-400 uppercase">Configured Model</span>
             <div className="text-sm font-bold text-white font-mono mt-1">
-              {aiStatus?.model || 'qwen2.5-coder:3b'}
+              {aiStatus?.model || 'babar_jamali/deepseek-r-11.5b-cyber'}
             </div>
           </div>
 
