@@ -179,7 +179,7 @@ export function USBFootprintsPage() {
               <div>
                 <span className="text-[11px] font-mono text-neutral-400 block uppercase">Device Identity</span>
                 <span className="text-base font-bold font-mono text-white block">
-                  {device?.name || "KIOXIA Corporation Flash Storage"}
+                  {footprints?.is_device_connected ? (device?.name || "Removable Storage Device") : "NO USB HARDWARE DETECTED"}
                 </span>
               </div>
 
@@ -187,25 +187,25 @@ export function USBFootprintsPage() {
                 <div>
                   <span className="text-neutral-500 text-[10px] block uppercase">Mount Point</span>
                   <span className="text-neutral-200 font-bold truncate block" title={device?.mount_point}>
-                    {device?.mount_point || "/run/media/yashz/KIOXIA_USB"}
+                    {footprints?.is_device_connected ? (device?.mount_point || "Active VFS") : "Disconnected"}
                   </span>
                 </div>
                 <div>
                   <span className="text-neutral-500 text-[10px] block uppercase">Serial Number</span>
                   <span className="text-neutral-200 font-bold truncate block" title={device?.serial}>
-                    {device?.serial || "B06EBF0AB48DE7B04140E84D"}
+                    {footprints?.is_device_connected ? (device?.serial || "N/A") : "None"}
                   </span>
                 </div>
                 <div>
                   <span className="text-neutral-500 text-[10px] block uppercase">Filesystem & Size</span>
                   <span className="text-neutral-200 font-bold block">
-                    {device?.filesystem?.toUpperCase() || "EXFAT"} • {device?.capacity_gb || 28.84} GB
+                    {footprints?.is_device_connected ? `${device?.filesystem?.toUpperCase() || "N/A"} • ${device?.capacity_gb || 0} GB` : "No Media"}
                   </span>
                 </div>
                 <div>
                   <span className="text-neutral-500 text-[10px] block uppercase">Hardware Node</span>
                   <span className="text-neutral-200 font-bold block">
-                    {device?.pnp_id || "/dev/sdc1"}
+                    {footprints?.is_device_connected ? (device?.pnp_id || "USB Bus") : "Offline"}
                   </span>
                 </div>
               </div>

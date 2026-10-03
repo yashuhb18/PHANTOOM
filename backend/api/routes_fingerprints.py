@@ -16,6 +16,7 @@ def list_fingerprints():
                s.device_name, s.vendor_id, s.product_id, s.risk_score, s.mount_point
         FROM fingerprints f
         LEFT JOIN sessions s ON f.session_id = s.session_id
+        WHERE f.session_id NOT LIKE 'sess_demo_%'
         ORDER BY f.created_at DESC
     """)
     rows = cursor.fetchall()
@@ -35,7 +36,6 @@ def list_fingerprints():
             except Exception:
                 item["genome"] = None
         else:
-            # Dynamically synthesize if missing
             try:
                 item["genome"] = forensic_dna_engine.synthesize_genome(item["session_id"], mount_point=item.get("mount_point"))
             except Exception:
@@ -47,8 +47,8 @@ def list_fingerprints():
 @router.get("/active-live")
 def get_active_live_dna():
     """
-    Returns the real-time Forensic DNA profile of the currently connected physical USB device,
-    or the most recent session's DNA.
+    Returns the real-time Forensic DNA profile ONLY IF a physical USB device
+    is currently mounted and connected to the system.
     """
     from backend.agent.hardware_agent import hardware_agent
     topology = hardware_agent.get_hardware_topology(force_refresh=True)
@@ -65,38 +65,22 @@ def get_active_live_dna():
             "genome": genome
         }
 
-    # If no live device, return most recent stored fingerprint
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT f.session_id, f.genome_json, s.device_name, s.vendor_id, s.product_id, s.mount_point
-        FROM fingerprints f
-        LEFT JOIN sessions s ON f.session_id = s.session_id
-        ORDER BY f.created_at DESC LIMIT 1
-    """)
-    row = cursor.fetchone()
-    conn.close()
-
-    if row and row["genome_json"]:
-        try:
-            return {
-                "is_connected": False,
-                "device": {
-                    "device_name": row["device_name"],
-                    "vendor_id": row["vendor_id"],
-                    "product_id": row["product_id"],
-                    "mount_point": row["mount_point"]
-                },
-                "genome": json.loads(row["genome_json"])
-            }
-        except Exception:
-            pass
-
+    # When no physical USB is connected, return strictly null
     return {
         "is_connected": False,
         "device": None,
         "genome": None
     }
+
+@router.post("/clear")
+def clear_all_fingerprints():
+    """Purges all cataloged DNA fingerprints so the analyst has a clean slate."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM fingerprints")
+    conn.commit()
+    conn.close()
+    return {"status": "CLEARED", "message": "All forensic fingerprints purged"}
 
 @router.get("/compare")
 def compare_fingerprints(
@@ -115,7 +99,6 @@ def get_session_dna(session_id: str):
     conn.close()
 
     if not row:
-        # Generate on demand
         genome = forensic_dna_engine.synthesize_genome(session_id)
         return genome
 

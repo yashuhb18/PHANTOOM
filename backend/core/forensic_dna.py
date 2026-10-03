@@ -86,12 +86,12 @@ class ForensicDNAEngine:
         Extracts filesystem format, volume UUID/serial, cluster block size, geometry.
         """
         meta = device_meta or {}
-        fs_type = meta.get("filesystem") or "exfat"
+        fs_type = meta.get("filesystem") or "UNKNOWN"
         capacity_gb = meta.get("capacity_gb") or 0.0
-        volume_uuid = "4A9E-81C2"
-        volume_label = "REMOVABLE"
-        cluster_size = 32768
-        mount_flags = "rw,nosuid,nodev,relatime"
+        volume_uuid = "UNASSIGNED"
+        volume_label = "NO_LABEL"
+        cluster_size = 4096
+        mount_flags = "rw"
 
         if mount_point and os.path.exists(mount_point):
             try:
