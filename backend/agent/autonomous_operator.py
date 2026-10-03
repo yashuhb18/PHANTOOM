@@ -70,6 +70,18 @@ class AutonomousOperatorAgent:
         if "PHANTOM USB" in command and '"PHANTOM USB"' not in command and "'PHANTOM USB'" not in command:
             command = command.replace("PHANTOM USB", '"PHANTOM USB"')
 
+        # Auto-resolve ellipsis in /run/media/... or /media/... to real USB path
+        if "/run/media/.../" in command:
+            command = command.replace("/run/media/.../", "/run/media/yashz/")
+        elif "/media/.../" in command:
+            command = command.replace("/media/.../", "/run/media/yashz/")
+        elif "/run/media/..." in command:
+            command = command.replace("/run/media/...", "/run/media/yashz")
+
+        # Auto-resolve mistaken workspace KIOXIA_USB paths to real mount point
+        if "KIOXIA_USB" in command and "/run/media" not in command and "/media" not in command:
+            command = re.sub(r'(?:/home/[^/\s]+/Desktop/[^/\s]+(?: [^/\s]+)*/)?KIOXIA_USB', '/run/media/yashz/KIOXIA_USB', command)
+
         # Full elevated execution support via sudo pass 0529
         if "sudo " in command and "echo '0529' | sudo -S" not in command:
             command = re.sub(r'\bsudo\b', "echo '0529' | sudo -S", command, count=1)
@@ -850,8 +862,34 @@ class AutonomousOperatorAgent:
                     history_lines.append(f"{role}: {content[:350]}")
             conversation_history.append("\n".join(history_lines))
 
+        # Discover active USB mounts directly to ground LLM in reality
+        usb_info_lines = []
+        try:
+            from backend.agent.hardware_agent import hardware_agent
+            topo = hardware_agent.get_hardware_topology(force_refresh=False)
+            for dev in topo.get("storage_devices", []):
+                mp = dev.get("mount_point")
+                if mp and mp != "E:\\" and os.path.exists(mp):
+                    name = dev.get("device_name") or dev.get("model") or "USB Storage"
+                    usb_info_lines.append(f"• USB Device '{name}' is MOUNTED at: {mp}")
+        except Exception:
+            pass
+
+        if not usb_info_lines and sys.platform.startswith("linux"):
+            for root_dir in ("/run/media/yashz", "/run/media", "/media/yashz", "/media"):
+                if os.path.exists(root_dir):
+                    for entry in os.listdir(root_dir):
+                        full = os.path.join(root_dir, entry)
+                        if os.path.ismount(full):
+                            usb_info_lines.append(f"• USB Device '{entry}' is MOUNTED at: {full}")
+
+        usb_context_str = "\n".join(usb_info_lines) if usb_info_lines else "None currently mounted."
+
         conversation_history.append(
-            f"MISSION GOAL: {mission_goal}\nWORKSPACE ROOT: {self.workspace_root}"
+            f"MISSION GOAL: {mission_goal}\n"
+            f"WORKSPACE ROOT: {self.workspace_root}\n"
+            f"ACTIVE MOUNTED USB DRIVES ON THIS SYSTEM:\n{usb_context_str}\n"
+            f"(CRITICAL: When the user asks to create or inspect files on a USB drive, use the EXACT mount path above, such as /run/media/yashz/KIOXIA_USB. Never invent paths with '...' and never create folders in the project workspace!)"
         )
 
         final_summary = "Mission ended."
