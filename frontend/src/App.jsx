@@ -21,6 +21,7 @@ import { ThreatAnalyticsPage } from './pages/ThreatAnalyticsPage';
 import { USBFootprintsPage } from './pages/USBFootprintsPage';
 import { SIEMHuntBoard } from './pages/SIEMHuntBoard';
 import { WhatsAppBotPage } from './pages/WhatsAppBotPage';
+import { NetworkMonitorPage } from './pages/NetworkMonitorPage';
 
 function AppContent() {
   const [currentTab, setCurrentTab] = useState('landing');
@@ -83,6 +84,7 @@ function AppContent() {
         <Dashboard setTab={setCurrentTab} setSelectedSessionId={setSelectedSessionId} />
       )}
       {currentTab === 'whatsapp' && <WhatsAppBotPage />}
+      {currentTab === 'network' && <NetworkMonitorPage />}
       {currentTab === 'siem' && <SIEMHuntBoard />}
       {currentTab === 'ports' && (
         <HardwarePorts setTab={setCurrentTab} setSelectedSessionId={setSelectedSessionId} />

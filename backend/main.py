@@ -18,12 +18,14 @@ from backend.api.routes_ai import router as ai_router
 from backend.api.routes_siem import router as siem_router
 from backend.api.routes_auth import router as auth_router
 from backend.api.routes_whatsapp import router as whatsapp_router
+from backend.api.routes_network import router as network_router
 from backend.api.ws_routes import router as ws_router
 
 import asyncio
 from backend.agent.usb_monitor import usb_monitor
 from backend.agent.process_monitor import process_monitor
 from backend.agent.autorun_guardian import autorun_guardian
+from backend.core.network_monitor import network_monitor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,20 +58,25 @@ async def lifespan(app: FastAPI):
     process_monitor.start(loop=loop)
     logger.info("Starting Autorun Guardian Agent...")
     autorun_guardian.start(loop=loop)
+    logger.info("Starting High-Frequency 1.0s Network Telemetry Engine...")
+    network_monitor.start()
     logger.info(f"PHANTOM Platform ready on http://{HOST}:{PORT}")
     logger.info("═══════════════════════════════════════════════════════════")
     logger.info("  PHANTOM AUTONOMOUS AGENTS ONLINE:")
     logger.info("    ✅ Hardware & USB Monitor Daemon")
     logger.info("    ✅ Process Surveillance & Containment Agent")
     logger.info("    ✅ Autorun Guardian Agent")
+    logger.info("    ✅ High-Frequency 1.0s Network Telemetry Engine")
     logger.info("    ✅ Threat Scanner (on-demand per USB insertion)")
     logger.info("    ✅ Canary Deception Grid")
-    logger.info("    ✅ GLM-4 Local AI Threat Intelligence & Copilot")
+    logger.info("    ✅ Local AI Threat Intelligence & Copilot")
     logger.info("  All agents operating in FULL AUTONOMOUS MODE")
     logger.info("  Zero human intervention required.")
     logger.info("═══════════════════════════════════════════════════════════")
     yield
     # Shutdown
+    logger.info("Shutting down Network Telemetry Engine...")
+    network_monitor.stop()
     logger.info("Shutting down Autorun Guardian Agent...")
     autorun_guardian.stop()
     logger.info("Shutting down Autonomous Process Surveillance Agent...")
@@ -108,6 +115,7 @@ app.include_router(ai_router)
 app.include_router(siem_router)
 app.include_router(auth_router)
 app.include_router(whatsapp_router)
+app.include_router(network_router)
 app.include_router(ws_router)
 
 @app.get("/health")

@@ -16,7 +16,8 @@ import {
   Fingerprint,
   Terminal,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Wifi
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -26,6 +27,7 @@ export function Sidebar({ currentTab, setTab, onOpenCopilot }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'whatsapp', label: 'WhatsApp SOC Bot', icon: MessageSquare, badge: 'WHATSAPP' },
+    { id: 'network', label: 'Network Monitor', icon: Wifi, badge: '1.0s' },
     { id: 'siem', label: 'SIEM Hunt Board', icon: Terminal, badge: 'SPLUNK' },
     { id: 'ports', label: 'Hardware & Ports', icon: Usb, badge: 'PORTS' },
     { id: 'footprints', label: 'USB Footprints', icon: Fingerprint, badge: 'FILES' },
