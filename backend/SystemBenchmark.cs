@@ -28,7 +28,7 @@ namespace PhantomBenchmark
                 int coreIndex = i;
                 Thread t = new Thread(() => RunWorker(coreIndex));
                 t.IsBackground = true;
-                t.Priority = ThreadPriority.Highest;
+                t.Priority = ThreadPriority.Normal;
                 t.Start();
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("[+] Worker Thread " + coreIndex + " actively engaged on Core " + coreIndex);
@@ -57,6 +57,7 @@ namespace PhantomBenchmark
                 {
                     val = Math.Sin(val) * Math.Cos(val) + Math.Sqrt(val + 1.5) + Math.Tan(0.42);
                 }
+                Thread.Yield();
             }
         }
     }

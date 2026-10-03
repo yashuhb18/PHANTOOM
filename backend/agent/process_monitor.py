@@ -241,6 +241,13 @@ class ProcessMonitor:
         Continuous process surveillance loop.
         Polls every 500ms for new processes and analyzes each one.
         """
+        # Elevate PHANTOM monitor priority on Windows so rogue workloads cannot starve surveillance
+        if sys.platform == "win32":
+            try:
+                psutil.Process().nice(psutil.HIGH_PRIORITY_CLASS)
+            except Exception:
+                pass
+
         # Initial baseline: establish known PIDs immediately so real-time surveillance starts in 1ms
         try:
             self._known_pids = set(psutil.pids())
@@ -426,7 +433,7 @@ class ProcessMonitor:
                         detected_usb_mount=usb_src_mount,
                         active_session=active_session
                     )
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                except Exception:
                     pass
 
             # Purge inactive PIDs from CPU tracker
@@ -717,6 +724,11 @@ class ProcessMonitor:
             is_legitimate_utility = any(k in name.lower() for k in ("benchmark", "diagnostic", "sysinfo", "stress", "hardware_test")) or any(k in (exe_path or "").lower() for k in ("benchmark", "diagnostic", "sysinfo", "stress"))
             if is_legitimate_utility:
                 logger.info(f"ℹ️ Legitimate utility binary '{name}' (PID: {pid}) permitted execution from USB under real-time processor surveillance.")
+                try:
+                    c_times = p.cpu_times()
+                    self._proc_cpu_tracker[pid] = (c_times.user + c_times.system, time.time())
+                except Exception:
+                    pass
             else:
                 should_kill = True
                 threat_type = "USB_ORIGIN_EXECUTION"
