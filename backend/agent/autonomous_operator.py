@@ -644,6 +644,61 @@ class AutonomousOperatorAgent:
         }
 
     # =========================================================================
+    # TOOL 9: DETECT USB DRIVES & PERIPHERALS
+    # =========================================================================
+    def tool_detect_usb(self) -> Dict[str, Any]:
+        """
+        Discovers all plugged-in physical USB storage devices, hardware IDs,
+        vendor names, partition sizes, and file system mount points.
+        """
+        try:
+            from backend.agent.hardware_agent import hardware_agent
+            topology = hardware_agent.get_hardware_topology(force_refresh=True)
+            storage = topology.get("storage_devices", [])
+            peripherals = topology.get("peripherals", [])
+
+            mounts = []
+            for d in storage:
+                mp = d.get("mount_point")
+                if mp and mp != "E:\\" and os.path.exists(mp):
+                    mounts.append({
+                        "device_name": d.get("device_name"),
+                        "vendor_name": d.get("vendor_name"),
+                        "mount_point": mp,
+                        "capacity_gb": d.get("capacity_gb"),
+                        "filesystem": d.get("filesystem"),
+                        "active_threats": d.get("active_threats", [])
+                    })
+
+            # Direct fallback for Linux media folders
+            if not mounts and sys.platform.startswith("linux"):
+                for media_root in ("/run/media", "/media", "/mnt"):
+                    if os.path.exists(media_root):
+                        for root, dirs, files in os.walk(media_root):
+                            if root != media_root and os.path.ismount(root):
+                                mounts.append({
+                                    "device_name": os.path.basename(root),
+                                    "mount_point": root,
+                                    "capacity_gb": 0
+                                })
+
+            return {
+                "tool": "DETECT_USB",
+                "success": True,
+                "connected_count": len(storage),
+                "storage_devices": storage,
+                "mounted_drives": mounts,
+                "mount_points": [m["mount_point"] for m in mounts],
+                "message": f"Found {len(storage)} USB storage device(s) and {len(mounts)} active mount point(s): {', '.join([m['mount_point'] for m in mounts]) if mounts else 'None'}"
+            }
+        except Exception as e:
+            return {
+                "tool": "DETECT_USB",
+                "success": False,
+                "error": str(e)
+            }
+
+    # =========================================================================
     # DISPATCHER
     # =========================================================================
     def execute_tool(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -694,6 +749,8 @@ class AutonomousOperatorAgent:
             return self.tool_list_processes(
                 filter_kw=args.get("filter_kw")
             )
+        elif name == "DETECT_USB":
+            return self.tool_detect_usb()
         else:
             return {
                 "tool": tool_name,
@@ -764,9 +821,11 @@ class AutonomousOperatorAgent:
             "6. WRITE_FILE: {'filepath': 'path to file', 'content': 'full file content'}\n"
             "7. LIST_FILES: {'directory': 'path or .', 'pattern': '*'}\n"
             "8. LIST_PROCESSES: {'filter_kw': 'optional search keyword'}\n"
-            "9. FINISH: {'summary': 'Comprehensive summary of what was accomplished and current system state'}\n\n"
+            "9. DETECT_USB: {}\n"
+            "10. FINISH: {'summary': 'Comprehensive summary of what was accomplished and current system state'}\n\n"
             "### CRITICAL RULES:\n"
-            "- Always wrap paths that have spaces (e.g. 'PHANTOM USB') in double quotes in bash commands.\n"
+            "- To detect or work with USB drives, first call DETECT_USB to discover connected flash drives and their mount points (e.g. /run/media/yashz/KIOXIA_USB). Then use WRITE_FILE, READ_FILE, or LIST_FILES inside that mount path.\n"
+            "- Always wrap paths that have spaces (e.g. 'PHANTOM USB' or 'KIOXIA USB') in double quotes in bash commands.\n"
             "- If the user's input is a greeting or general question, DO NOT run bash commands like 'echo hi'. Return action: 'FINISH' with your helpful response in 'summary'.\n"
             "- Only use RUN_COMMAND, KILL_PROCESS, KILL_FILE, or EDIT_CODE when an actual OS action, process kill, file removal, or code editing task is requested.\n\n"
             "### STRICT OUTPUT FORMAT:\n"

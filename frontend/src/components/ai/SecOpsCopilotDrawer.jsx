@@ -17,7 +17,8 @@ import {
   RotateCcw,
   Play,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Usb
 } from 'lucide-react';
 
 function parseThinkingAndAnswer(rawText) {
@@ -674,6 +675,7 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                                  m.currentTool.action === 'RUN_COMMAND' ? `Executing: ${m.currentTool.args?.command || 'command'}...` :
                                  m.currentTool.action === 'KILL_PROCESS' ? `Terminating process PID ${m.currentTool.args?.pid || 'target'}...` :
                                  m.currentTool.action === 'KILL_FILE' ? `Deleting file ${m.currentTool.args?.filepath || 'file'}...` :
+                                 m.currentTool.action === 'DETECT_USB' ? `Detecting connected USB devices & mount points...` :
                                  `Executing ${m.currentTool.action}...`}
                               </span>
                             </div>
@@ -707,6 +709,7 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                                       {st.action === 'RUN_COMMAND' && <Terminal className="w-3.5 h-3.5 text-[#FDE047]" />}
                                       {st.action === 'KILL_PROCESS' && <ShieldAlert className="w-3.5 h-3.5 text-red-400" />}
                                       {st.action === 'KILL_FILE' && <Trash2 className="w-3.5 h-3.5 text-amber-400" />}
+                                      {st.action === 'DETECT_USB' && <Usb className="w-3.5 h-3.5 text-[#FDE047]" />}
 
                                       <span className="font-bold text-white">
                                         {st.action === 'EDIT_CODE' ? `Editing ${res.rel_path || res.filename || st.args?.filepath}` :
@@ -714,7 +717,8 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                                          st.action === 'READ_FILE' ? `Viewing ${res.rel_path || res.filename || st.args?.filepath}` :
                                          st.action === 'RUN_COMMAND' ? `Running command` :
                                          st.action === 'KILL_PROCESS' ? `Terminating process` :
-                                         st.action === 'KILL_FILE' ? `Deleting file` : st.action}
+                                         st.action === 'KILL_FILE' ? `Deleting file` :
+                                         st.action === 'DETECT_USB' ? `Detected USB Storage (${res.connected_count || 0} device(s))` : st.action}
                                       </span>
 
                                       {/* Antigravity Lines Changed Badge */}
@@ -797,6 +801,25 @@ export function SecOpsCopilotDrawer({ isOpen, onClose, selectedSessionId }) {
                                       <pre className="p-3 rounded-lg bg-black/80 border border-white/[0.06] text-neutral-300 font-mono text-[10px] overflow-x-auto whitespace-pre-wrap max-h-48 leading-snug">
                                         {res.content}
                                       </pre>
+                                    )}
+
+                                    {/* USB Detection Output */}
+                                    {st.action === 'DETECT_USB' && res.storage_devices && res.storage_devices.length > 0 && (
+                                      <div className="space-y-1.5 font-mono text-[11px] my-1">
+                                        {res.storage_devices.map((dev, dIdx) => (
+                                          <div key={dIdx} className="p-2.5 rounded-lg bg-black/80 border border-white/10 flex items-center justify-between">
+                                            <div>
+                                              <span className="text-white font-bold">{dev.device_name || dev.model}</span>
+                                              <span className="text-neutral-400 block text-[10px] mt-0.5">
+                                                Mount: <strong className="text-[#FDE047]">{dev.mount_point || 'Unmounted'}</strong> • {dev.capacity_gb}GB • {dev.filesystem}
+                                              </span>
+                                            </div>
+                                            <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                                              {dev.hardware_id}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     )}
 
                                     {/* Message confirmation */}
