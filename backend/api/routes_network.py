@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.core.network_monitor import network_monitor
+from backend.core.packet_engine import packet_engine
 
 logger = logging.getLogger("phantom.api.network")
 router = APIRouter(prefix="/api/network", tags=["network"])
@@ -14,6 +15,9 @@ router = APIRouter(prefix="/api/network", tags=["network"])
 
 class KillProcessRequest(BaseModel):
     pid: int
+
+class AttackSimulationRequest(BaseModel):
+    attack_type: str  # REVERSE_SHELL, PORT_SCAN, DNS_TUNNEL, CLEARTEXT_CREDS
 
 
 @router.get("/telemetry")
@@ -68,11 +72,70 @@ def kill_network_process(pid: int):
     return result
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# WIRESHARK-STYLE DEEP PACKET INSPECTION & ATTACK HUNTING ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/packets")
+def get_captured_packets(
+    protocol: Optional[str] = Query(None, description="Filter protocol (TCP, UDP, DNS, TLS, HTTP, REVERSE_SHELL)"),
+    search: Optional[str] = Query(None, description="Filter by IP, port, process, text"),
+    attack_only: bool = Query(False, description="Filter only packets flagged as attacks"),
+    since_no: int = Query(0, ge=0, description="Return packets with frame number > since_no"),
+    limit: int = Query(120, ge=1, le=500, description="Max frames to return")
+):
+    """Returns real-time packet frames for the Wireshark Packet List pane."""
+    return packet_engine.get_packets(
+        protocol=protocol,
+        search=search,
+        attack_only=attack_only,
+        since_no=since_no,
+        limit=limit
+    )
+
+
+@router.get("/packets/{packet_no}")
+def get_packet_details(packet_no: int):
+    """Returns full multi-layer dissection and authentic hex dump for a single packet."""
+    pkt = packet_engine.get_packet_by_no(packet_no)
+    if not pkt:
+        raise HTTPException(status_code=404, detail=f"Packet #{packet_no} not found.")
+    return pkt
+
+
+@router.post("/capture/toggle")
+def toggle_packet_capture():
+    """Pauses or resumes packet capture."""
+    is_capturing = packet_engine.toggle_capture()
+    return {"capturing": is_capturing, "status": "ACTIVE" if is_capturing else "PAUSED"}
+
+
+@router.post("/capture/clear")
+def clear_captured_packets():
+    """Clears packet buffer."""
+    packet_engine.clear()
+    return {"success": True, "message": "Packet buffer cleared."}
+
+
+@router.post("/simulate-attack")
+def simulate_network_attack(req: AttackSimulationRequest):
+    """
+    Injects a realistic cyber attack packet sequence into the sniffer stream
+    so analysts can inspect live attacks, dissection trees, and hex dumps.
+    """
+    pkts = packet_engine.inject_attack_stream(req.attack_type)
+    return {
+        "success": True,
+        "attack_type": req.attack_type,
+        "frames_injected": len(pkts),
+        "packets": pkts
+    }
+
+
 @router.get("/stream")
 async def stream_network_telemetry():
     """
-    Server-Sent Events (SSE) streaming real-time 1.0-second network telemetry packets
-    directly to the Task Manager dashboard.
+    Server-Sent Events (SSE) streaming real-time 1.0-second network telemetry packets.
     """
     async def event_generator():
         while True:
@@ -92,3 +155,4 @@ async def stream_network_telemetry():
             "Content-Type": "text/event-stream"
         }
     )
+

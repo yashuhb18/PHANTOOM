@@ -26,6 +26,7 @@ from backend.agent.usb_monitor import usb_monitor
 from backend.agent.process_monitor import process_monitor
 from backend.agent.autorun_guardian import autorun_guardian
 from backend.core.network_monitor import network_monitor
+from backend.core.packet_engine import packet_engine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,6 +61,8 @@ async def lifespan(app: FastAPI):
     autorun_guardian.start(loop=loop)
     logger.info("Starting High-Frequency 1.0s Network Telemetry Engine...")
     network_monitor.start()
+    logger.info("Starting Deep Packet Inspection (DPI) & Traffic Triage Engine...")
+    packet_engine.start()
     logger.info(f"PHANTOM Platform ready on http://{HOST}:{PORT}")
     logger.info("═══════════════════════════════════════════════════════════")
     logger.info("  PHANTOM AUTONOMOUS AGENTS ONLINE:")
@@ -67,6 +70,7 @@ async def lifespan(app: FastAPI):
     logger.info("    ✅ Process Surveillance & Containment Agent")
     logger.info("    ✅ Autorun Guardian Agent")
     logger.info("    ✅ High-Frequency 1.0s Network Telemetry Engine")
+    logger.info("    ✅ Deep Packet Inspection (DPI) & Sniffer Engine")
     logger.info("    ✅ Threat Scanner (on-demand per USB insertion)")
     logger.info("    ✅ Canary Deception Grid")
     logger.info("    ✅ Local AI Threat Intelligence & Copilot")
@@ -75,6 +79,8 @@ async def lifespan(app: FastAPI):
     logger.info("═══════════════════════════════════════════════════════════")
     yield
     # Shutdown
+    logger.info("Shutting down Packet Sniffer Engine...")
+    packet_engine.stop()
     logger.info("Shutting down Network Telemetry Engine...")
     network_monitor.stop()
     logger.info("Shutting down Autorun Guardian Agent...")
