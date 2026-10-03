@@ -85,6 +85,24 @@ class AutonomousOperatorAgent:
         if "KIOXIA_USB" in command and "/run/media" not in command and "/media" not in command:
             command = re.sub(r'(?:/home/[^/\s]+/Desktop/[^/\s]+(?: [^/\s]+)*/)?KIOXIA_USB', '/run/media/yashz/KIOXIA_USB', command)
 
+        # Auto-resolve mistaken workspace paths for files that actually reside on USB
+        usb_root = Path('/run/media/yashz/KIOXIA_USB')
+        if usb_root.exists():
+            if "PHANTOM_FOLDER" in command and "/run/media" not in command:
+                command = re.sub(r'(?:/home/[^/\s]+/Desktop/[^/\s]+(?: [^/\s]+)*/)?PHANTOM_FOLDER', '/run/media/yashz/KIOXIA_USB/PHANTOM_FOLDER', command)
+
+            for usb_file in usb_root.rglob('*'):
+                if usb_file.is_file():
+                    fname = usb_file.name
+                    if fname in command:
+                        pattern = rf'(?:(?:/[^/\n\r]+)+/)?{re.escape(fname)}'
+                        m = re.search(pattern, command)
+                        if m:
+                            cand = m.group(0).strip('\"\'')
+                            if not os.path.exists(cand):
+                                command = command.replace(m.group(0), str(usb_file))
+                                break
+
         # Full elevated execution support via sudo pass 0529
         if "sudo " in command and "echo '0529' | sudo -S" not in command:
             command = re.sub(r'\bsudo\b', "echo '0529' | sudo -S", command, count=1)
