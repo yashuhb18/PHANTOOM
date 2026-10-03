@@ -164,6 +164,11 @@ class ProcessMonitor:
         "/etc/shadow",
     ]
 
+    # DEMO MODE: When True, PHANTOM detects and alerts but does NOT kill processes.
+    # This lets terminals actually open for hackathon demonstration while still
+    # showing all the threat detection in the UI dashboard.
+    DEMO_MODE: bool = True  # Set to False for real protection
+
     def __init__(self, callback: Optional[Callable] = None):
         self.callback = callback
         self._running = False
@@ -512,7 +517,39 @@ class ProcessMonitor:
             "timestamp": now
         }))
 
-        # 3. KILL THE PROCESS TREE
+        # 3. DEMO MODE CHECK — detect and alert but don't kill
+        if self.DEMO_MODE:
+            logger.warning(f"🎯 DEMO MODE: Detected {threat_type} for {name} (PID: {pid}) — NOT killing (demo mode active)")
+            demo_event = {
+                "source": "RESPONSE_ENGINE",
+                "event_type": "CONTAINMENT_TRIGGERED",
+                "severity": "CRITICAL",
+                "timestamp": now,
+                "session_id": session_id,
+                "data": {
+                    "action": "DEMO_MODE_DETECTION",
+                    "target_pid": pid,
+                    "process_name": name,
+                    "threat_type": threat_type,
+                    "children_killed": 0,
+                    "killed_children": [],
+                    "status": "DETECTED_NOT_KILLED_DEMO_MODE",
+                    "total_kills_this_session": self._kill_count
+                }
+            }
+            self._broadcast_safe(ws_manager.broadcast_live(demo_event))
+            self._broadcast_safe(ws_manager.broadcast_narrator({
+                "session_id": session_id,
+                "narration": (
+                    f"🎯 DEMO MODE: '{name}' (PID: {pid}) detected as {threat_type.replace('_', ' ')}. "
+                    f"Process ALLOWED to run for demonstration. "
+                    f"In production mode, this process would be immediately terminated."
+                ),
+                "timestamp": now
+            }))
+            return  # Don't kill in demo mode
+
+        # 3. KILL THE PROCESS TREE (production mode)
         killed_children = []
         try:
             # First, kill all children (recursive)
