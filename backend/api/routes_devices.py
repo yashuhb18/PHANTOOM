@@ -343,7 +343,15 @@ def get_hardware_footprints():
                 file_category = "DIGITAL_DUST"
                 indicators = ["Host Operating System Remnant Fingerprint"]
 
-            if "exploit" in fname.lower() or "malware" in fname.lower() or ext in (".sh", ".bat", ".ps1", ".py", ".exe", ".scr", ".pif", ".com", ".msi", ".dll", ".cmd", ".vbs", ".js", ".hta"):
+            lower_fname = fname.lower()
+            is_legitimate_utility = any(k in lower_fname for k in ("benchmark", "diagnostic", "sysinfo", "stress", "hardware_test"))
+
+            if is_legitimate_utility:
+                verdict = "BENIGN_UTILITY"
+                file_category = "SYSTEM_BENCHMARK"
+                threat_score = 0
+                indicators = ["Standard System Diagnostic & Performance Benchmark Utility"]
+            elif "exploit" in lower_fname or "malware" in lower_fname or ext in (".sh", ".bat", ".ps1", ".py", ".exe", ".scr", ".pif", ".com", ".msi", ".dll", ".cmd", ".vbs", ".js", ".hta"):
                 try:
                     analysis = threat_scanner._analyze_file(filepath, "sess_footprints")
                     if analysis:

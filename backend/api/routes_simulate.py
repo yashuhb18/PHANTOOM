@@ -16,3 +16,4 @@ async def simulate_attack_2():
 @router.get("/status")
 def get_simulation_status():
     return {"is_simulating": attack_simulator.is_simulating}
+

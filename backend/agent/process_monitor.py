@@ -200,6 +200,7 @@ class ProcessMonitor:
         self._killed_pids: Set[int] = set()  # Track killed PIDs to avoid duplicate alerts
         self._kill_count = 0
         self._terminal_spawns: List[Any] = []  # Track terminal spawns (timestamp, pid, ppid) for storm detection
+        self._proc_cpu_tracker: Dict[int, Tuple[float, float]] = {}  # Track PID CPU times (total_sec, timestamp) for accurate rate tracking
 
     def start(self, loop: Optional[asyncio.AbstractEventLoop] = None):
         if self._running:
@@ -224,6 +225,12 @@ class ProcessMonitor:
                 asyncio.run_coroutine_threadsafe(coro, self._event_loop)
             except Exception as e:
                 logger.debug(f"Failed to dispatch coroutine to loop: {e}")
+                coro.close()
+        else:
+            try:
+                coro.close()
+            except Exception:
+                pass
 
     # ─────────────────────────────────────────────────────────────────────
     # MAIN MONITORING LOOP — Ultra-fast 500ms polling
@@ -258,16 +265,15 @@ class ProcessMonitor:
                     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                         pass
                     except Exception as e:
-                        logger.debug(f"Process analysis error for PID {pid}: {e}")
+                        logger.error(f"❌ Process analysis error for PID {pid}: {e}", exc_info=True)
 
                 self._known_pids = current_pids
 
-                # Every 2 cycles (~1.0s), inspect active processes for runaway CPU processor burn
-                if cycle_counter % 2 == 0:
-                    self._check_high_cpu_processes()
+                # Every cycle (~500ms), inspect active processes for runaway CPU processor burn
+                self._check_high_cpu_processes()
 
             except Exception as e:
-                logger.debug(f"Process monitor cycle error: {e}")
+                logger.error(f"❌ Process monitor cycle error: {e}", exc_info=True)
                 time.sleep(1.0)
 
     # ─────────────────────────────────────────────────────────────────────
@@ -289,86 +295,145 @@ class ProcessMonitor:
             "wininit.exe", "services.exe", "lsass.exe", "svchost.exe", "dwm.exe",
             "explorer.exe", "taskmgr.exe", "antigravity.exe", "code.exe", "cursor.exe",
             "ollama.exe", "ollama_llama_server.exe", "node.exe", "python.exe", "python3.exe",
-            "uvicorn.exe"
+            "python3.11.exe", "python3.12.exe", "python3.13.exe", "uvicorn.exe",
+            "memcompression", "memory compression", "spoolsv.exe", "searchindexer.exe"
         }
 
+        now = time.time()
+        active_pids = set()
+
         try:
-            for p in psutil.process_iter(['pid', 'name', 'exe', 'cmdline', 'cpu_percent']):
+            for p in psutil.process_iter(['pid', 'name']):
                 try:
                     pid = p.info['pid']
+                    active_pids.add(pid)
                     if pid in (0, 4, my_pid, parent_pid) or pid in self._killed_pids:
                         continue
                     pname = (p.info.get('name') or "").lower()
-                    if pname in SAFE_PROCESS_NAMES or any(s in pname for s in ("antigravity", "cursor", "code", "ollama", "system")):
+                    if pname in SAFE_PROCESS_NAMES or any(s in pname for s in ("antigravity", "cursor", "code", "ollama", "memcompression", "python")):
                         continue
 
-                    # Check for IDE / Assistant parents or servers
-                    cmdline = " ".join(p.info.get('cmdline') or []).lower()
+                    # Check process CPU utilization via delta CPU times (takes ~0.001ms)
+                    try:
+                        c_times = p.cpu_times()
+                        total_cpu_sec = c_times.user + c_times.system
+                    except Exception:
+                        continue
+
+                    cpu = 0.0
+                    if pid in self._proc_cpu_tracker:
+                        prev_sec, prev_ts = self._proc_cpu_tracker[pid]
+                        dt = now - prev_ts
+                        if dt >= 0.20:
+                            cpu = ((total_cpu_sec - prev_sec) / dt) * 100.0
+                            self._proc_cpu_tracker[pid] = (total_cpu_sec, now)
+                    else:
+                        self._proc_cpu_tracker[pid] = (total_cpu_sec, now)
+
+                    if cpu <= 0.0:
+                        continue
+
+                    # Check if this candidate is burning excessive processor capacity
+                    is_suspicious_name = any(k in pname for k in ("glitch", "demo", "error", "prank", "rogue", "miner", "test", "load", "burn", "cryptominer"))
+                    is_benchmark_utility = any(k in pname for k in ("benchmark", "stress"))
+                    is_suspicious_spike = is_suspicious_name and cpu >= 12.0
+                    is_benchmark_spike = is_benchmark_utility and cpu >= 20.0
+                    is_general_spike = cpu >= 35.0
+
+                    if not (is_general_spike or is_suspicious_spike or is_benchmark_spike):
+                        continue
+
+                    # Candidate confirmed: only now inspect cmdline and exe paths
+                    try:
+                        cmdline_list = p.cmdline() or []
+                        cmdline = " ".join(cmdline_list).lower()
+                    except Exception:
+                        cmdline_list = []
+                        cmdline = ""
+
                     if any(srv in cmdline for srv in ("uvicorn", "backend.main", "vite", "antigravity", "cursor", "code-insiders", "ollama")):
                         continue
 
-                    # Check process CPU utilization
-                    cpu = p.info.get('cpu_percent') or 0.0
+                    try:
+                        proc_exe = (p.exe() or "").lower()
+                    except Exception:
+                        proc_exe = ""
 
-                    # Exclude Windows system service paths and trusted enterprise software from generic CPU killing
-                    proc_exe = (p.info.get('exe') or "").lower()
+                    if not proc_exe and not (is_benchmark_utility or is_suspicious_name):
+                        continue
+
                     is_in_system_dir = any(sys_path in proc_exe for sys_path in (
                         "c:\\windows", "c:\\program files", "c:\\program files (x86)", "\\windowsapps"
                     ))
                     is_trusted_app = any(svc in pname for svc in ("splunk", "installer", "trustedinstaller", "tiworker", "searchindexer", "spoolsv", "backgrounddownload", "xbox", "msedge", "chrome", "firefox", "teams"))
 
-                    # Suspicious named processes (glitch, demo, prank, miner, rogue) are flagged immediately upon processor burn
-                    is_suspicious_name = any(k in pname for k in ("glitch", "demo", "error", "prank", "rogue", "miner", "test", "load", "burn", "cryptominer"))
-                    is_suspicious_spike = is_suspicious_name and cpu >= 12.0
-                    is_general_spike = cpu >= 35.0 and not (is_in_system_dir or is_trusted_app)
+                    if (is_in_system_dir or is_trusted_app) and not (is_benchmark_utility or is_suspicious_name):
+                        continue
 
-                    if is_general_spike or is_suspicious_spike:
-                        logger.warning(f"🚨 RUNAWAY PROCESSOR THREAT: '{pname}' (PID {pid}) using {cpu}% CPU! Autonomous kill engaged.")
+                    logger.warning(f"🚨 RUNAWAY PROCESSOR THREAT: '{pname}' (PID {pid}) using {cpu}% CPU! Autonomous kill engaged.")
 
-                        active_session = session_manager.get_active_session()
-                        session_id = active_session["session_id"] if active_session else f"sess_live_{int(time.time())}"
-                        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    active_session = session_manager.get_active_session()
+                    session_id = active_session["session_id"] if active_session else f"sess_live_{int(time.time())}"
+                    now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-                        alert_event = {
-                            "source": "PROCESS_MONITOR",
-                            "event_type": "HIGH_CPU_PROCESSOR_ANOMALY",
-                            "severity": "CRITICAL",
-                            "session_id": session_id,
-                            "timestamp": now,
-                            "data": {
-                                "process_name": pname,
-                                "pid": pid,
-                                "command_line": cmdline[:200],
-                                "cpu_percent": round(cpu, 1),
-                                "threat_type": "RUNAWAY_HIGH_PROCESSOR_ABUSE",
-                                "anomaly": f"PROCESSOR_BURST_{round(cpu, 1)}_PERCENT",
-                                "status": "AUTONOMOUS_KILL_EXECUTED"
-                            }
+                    # Check if process originated from removable/USB drive
+                    is_usb_src = False
+                    usb_src_mount = ""
+                    try:
+                        for part in psutil.disk_partitions(all=False):
+                            p_mp = part.mountpoint.lower().rstrip("\\/")
+                            if p_mp and p_mp not in ("c:", "d:") and (p_mp in proc_exe or p_mp in cmdline):
+                                is_usb_src = True
+                                usb_src_mount = part.mountpoint
+                                break
+                    except Exception:
+                        pass
+
+                    alert_event = {
+                        "source": "PROCESS_MONITOR",
+                        "event_type": "HIGH_CPU_PROCESSOR_ANOMALY",
+                        "severity": "CRITICAL",
+                        "session_id": session_id,
+                        "timestamp": now_iso,
+                        "data": {
+                            "process_name": pname,
+                            "pid": pid,
+                            "command_line": cmdline[:200],
+                            "cpu_percent": round(cpu, 1),
+                            "threat_type": "RUNAWAY_HIGH_PROCESSOR_ABUSE",
+                            "anomaly": f"PROCESSOR_BURST_{round(cpu, 1)}_PERCENT",
+                            "is_from_usb": is_usb_src,
+                            "status": "AUTONOMOUS_KILL_EXECUTED"
                         }
-                        self._broadcast_safe(ws_manager.broadcast_live(alert_event))
-                        self._broadcast_safe(ws_manager.broadcast_narrator({
-                            "session_id": session_id,
-                            "narration": f"🔴 PROCESSOR SPIKE NEUTRALIZED: '{pname}' (PID {pid}) consumed {round(cpu, 1)}% CPU across system processor cores. PHANTOM autonomous containment terminated the threat instantly.",
-                            "timestamp": now
-                        }))
+                    }
+                    self._broadcast_safe(ws_manager.broadcast_live(alert_event))
+                    self._broadcast_safe(ws_manager.broadcast_narrator({
+                        "session_id": session_id,
+                        "narration": f"🔴 PROCESSOR SPIKE NEUTRALIZED: '{pname}' (PID {pid}) consumed {round(cpu, 1)}% CPU across system processor cores. PHANTOM autonomous containment terminated the threat instantly.",
+                        "timestamp": now_iso
+                    }))
 
-                        proc_obj = psutil.Process(pid)
-                        self._execute_containment(
-                            proc=proc_obj,
-                            pid=pid,
-                            name=pname,
-                            cmdline=cmdline,
-                            threat_type="RUNAWAY_HIGH_PROCESSOR_ABUSE",
-                            severity="CRITICAL",
-                            risk_delta=50,
-                            is_from_usb=False,
-                            detected_usb_mount="",
-                            active_session=active_session
-                        )
+                    proc_obj = psutil.Process(pid)
+                    self._execute_containment(
+                        proc=proc_obj,
+                        pid=pid,
+                        name=pname,
+                        cmdline=cmdline,
+                        threat_type="RUNAWAY_HIGH_PROCESSOR_ABUSE",
+                        severity="CRITICAL",
+                        risk_delta=50,
+                        is_from_usb=is_usb_src,
+                        detected_usb_mount=usb_src_mount,
+                        active_session=active_session
+                    )
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
+
+            # Purge inactive PIDs from CPU tracker
+            if len(self._proc_cpu_tracker) > 500:
+                self._proc_cpu_tracker = {k: v for k, v in self._proc_cpu_tracker.items() if k in active_pids}
         except Exception as e:
-            logger.debug(f"High CPU scan error: {e}")
+            logger.error(f"❌ High CPU scan error: {e}", exc_info=True)
 
     # ─────────────────────────────────────────────────────────────────────
     # PROCESS ANALYSIS ENGINE
@@ -506,7 +571,10 @@ class ProcessMonitor:
                 return
 
             is_test_probe = ("phantom-test" in cmdline or "phantom_test" in cmdline)
-            is_usb_path = ("/run/media/" in proc_cwd or "/media/" in proc_cwd or "/run/media/" in cmdline or "/media/" in cmdline or is_test_probe)
+            is_usb_path = (
+                "/run/media/" in proc_cwd or "/media/" in proc_cwd or "/run/media/" in cmdline or "/media/" in cmdline or is_test_probe
+                or any(any(m in target for m in ("e:\\", "e:/", "f:\\", "f:/", "g:\\", "g:/")) for target in (proc_cwd.lower(), cmdline.lower(), proc_exe.lower()))
+            )
 
             # Skip existing user shells and terminal emulators during initial startup baseline sweep
             if is_initial_sweep and name in ("xfce4-terminal", "gnome-terminal", "qterminal", "xterm", "bash", "zsh"):
@@ -644,13 +712,17 @@ class ProcessMonitor:
         severity = "MEDIUM"
         risk_delta = 0
 
-        # RULE 1: Any executable running from USB → KILL
+        # RULE 1: Any executable running from USB → KILL (unless it is a legitimate diagnostic/benchmark utility permitted for processor stress testing)
         if exe_from_usb:
-            should_kill = True
-            threat_type = "USB_ORIGIN_EXECUTION"
-            severity = "CRITICAL"
-            risk_delta = 45
-            logger.warning(f"🚨 USB-ORIGIN EXECUTION: {name} (PID: {pid}) running from {exe_path}")
+            is_legitimate_utility = any(k in name.lower() for k in ("benchmark", "diagnostic", "sysinfo", "stress", "hardware_test")) or any(k in (exe_path or "").lower() for k in ("benchmark", "diagnostic", "sysinfo", "stress"))
+            if is_legitimate_utility:
+                logger.info(f"ℹ️ Legitimate utility binary '{name}' (PID: {pid}) permitted execution from USB under real-time processor surveillance.")
+            else:
+                should_kill = True
+                threat_type = "USB_ORIGIN_EXECUTION"
+                severity = "CRITICAL"
+                risk_delta = 45
+                logger.warning(f"🚨 USB-ORIGIN EXECUTION: {name} (PID: {pid}) running from {exe_path}")
 
         # RULE 2: Instant-kill patterns → KILL immediately
         elif has_instant_kill:

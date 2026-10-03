@@ -541,6 +541,13 @@ class ThreatScanner:
                     "score": 50
                 })
 
+            # ── Check for legitimate system utilities / benchmarks ──
+            lower_fname = fname.lower()
+            is_legitimate_utility = any(k in lower_fname for k in ("benchmark", "diagnostic", "sysinfo", "stress", "hardware_test", "audit_tool"))
+            if is_legitimate_utility:
+                # Legitimate utilities are benign tools, not malware or dangerous files
+                return None
+
             # ── Extension-based risk scoring ──
             if ext in {".exe", ".scr", ".pif", ".com", ".msi"}:
                 base_score = 45  # Direct execution vector on removable media
@@ -551,7 +558,6 @@ class ThreatScanner:
                     "score": base_score
                 })
                 # Check for suspicious threat naming
-                lower_fname = fname.lower()
                 if any(k in lower_fname for k in ("exploit", "malware", "payload", "glitch", "error", "prank", "demo", "hack", "miner", "trojan")):
                     score_add = 30
                     result["threat_score"] += score_add

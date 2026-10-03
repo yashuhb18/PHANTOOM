@@ -89,6 +89,8 @@ class HardwareAgent:
                 for fname in files:
                     ext = os.path.splitext(fname)[1].lower()
                     lower_name = fname.lower()
+                    if any(k in lower_name for k in ("benchmark", "diagnostic", "sysinfo", "stress", "hardware_test")):
+                        continue
                     if ext in DANGEROUS_EXTS or lower_name == "autorun.inf" or any(k in lower_name for k in ("exploit", "malware", "payload", "glitch", "prank", "badusb", "demo")):
                         if fname not in threats:
                             threats.append(fname)
