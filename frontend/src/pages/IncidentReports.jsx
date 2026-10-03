@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { IncidentReport } from '../components/reports/IncidentReport';
 import { LoadingState } from '../components/common/LoadingState';
-import { Sparkles, RefreshCw, Cpu } from 'lucide-react';
+import { Sparkles, RefreshCw, Cpu, FileDown } from 'lucide-react';
 
 export function IncidentReports({ initialSessionId = 'sess_demo_stage1_ducky' }) {
   const [reports, setReports] = useState([]);
@@ -90,6 +90,18 @@ export function IncidentReports({ initialSessionId = 'sess_demo_stage1_ducky' })
               {currentReport.engine}
             </span>
           )}
+
+          <a
+            href={`http://${window.location.hostname}:8001/api/reports/${selectedSessionId}/pdf`}
+            download={`PHANTOM_Incident_Report_${selectedSessionId}.pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-black px-4 py-1.5 rounded-full bg-gradient-to-r from-red-600 via-amber-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-red-500/20"
+            title="Download executive incident PDF dossier with all forensic charts in one click"
+          >
+            <FileDown className="w-3.5 h-3.5" />
+            <span>Download PDF</span>
+          </a>
 
           <button
             onClick={handleRegenerateWithAI}

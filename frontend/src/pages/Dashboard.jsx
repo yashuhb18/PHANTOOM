@@ -5,7 +5,7 @@ import { LiveTicker } from '../components/dashboard/LiveTicker';
 import { SimulateButton } from '../components/common/SimulateButton';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../hooks/useAuth';
-import { Zap, ArrowRight, Clock, MapPin, HardDrive, LogOut, AlertTriangle, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
+import { Zap, ArrowRight, Clock, MapPin, HardDrive, LogOut, AlertTriangle, CheckCircle2, Trash2, RefreshCw, FileDown } from 'lucide-react';
 import { safeJson } from '../utils/api';
 
 export function Dashboard({ setTab, setSelectedSessionId }) {
@@ -429,6 +429,18 @@ export function Dashboard({ setTab, setSelectedSessionId }) {
                 <span>Ports</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
+
+              <a
+                href={`http://${window.location.hostname}:8001/api/reports/latest/pdf`}
+                download="PHANTOM_Latest_Incident_Report.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-black bg-gradient-to-r from-red-600 via-amber-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white transition-all cursor-pointer pill-button shadow-lg shadow-red-500/20"
+                title="Download 1-click executive PDF report with charts & forensic analysis"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Forensic PDF</span>
+              </a>
             </div>
           </div>
         </div>

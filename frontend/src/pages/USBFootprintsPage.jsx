@@ -16,6 +16,7 @@ import {
   Monitor,
   ExternalLink,
   ChevronRight,
+  FileDown,
   X
 } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -281,9 +282,22 @@ export function USBFootprintsPage() {
                 Take a look into the files created on plug-in — inspect raw content, SHA256 hashes & threat scores
               </p>
             </div>
-            <span className="text-xs font-mono text-neutral-300 font-bold">
-              {artifacts.length} ARTIFACTS FOUND
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-mono text-neutral-300 font-bold hidden sm:inline-block">
+                {artifacts.length} ARTIFACTS FOUND
+              </span>
+              <a
+                href={`http://${window.location.hostname}:8001/api/reports/latest/pdf`}
+                download="PHANTOM_Latest_Incident_Report.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black bg-gradient-to-r from-red-600 via-amber-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white transition-all cursor-pointer pill-button shadow-lg shadow-red-500/20"
+                title="Download complete forensic incident report PDF with all graphs in one click"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Download Forensic PDF</span>
+              </a>
+            </div>
           </div>
 
           <div className="space-y-4">
