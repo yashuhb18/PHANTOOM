@@ -126,9 +126,9 @@ class GLMClient:
                     "keep_alive": "60m",
                     "options": {
                         "temperature": temperature,
-                        "num_ctx": 4096,
+                        "num_ctx": 8192,
                         "num_thread": 8,
-                        "num_predict": 1024
+                        "num_predict": 3072
                     }
                 }
                 if system:
@@ -171,9 +171,9 @@ class GLMClient:
                     "keep_alive": "60m",
                     "options": {
                         "temperature": temperature,
-                        "num_ctx": 4096,
+                        "num_ctx": 8192,
                         "num_thread": 8,
-                        "num_predict": 1024
+                        "num_predict": 3072
                     }
                 }
                 if system:
@@ -218,9 +218,9 @@ class GLMClient:
             "keep_alive": "60m",
             "options": {
                 "temperature": temperature,
-                "num_ctx": 4096,
+                "num_ctx": 8192,
                 "num_thread": 8,
-                "num_predict": 1024
+                "num_predict": 3072
             }
         }
         if system:
@@ -285,8 +285,8 @@ class GLMClient:
                     "keep_alive": "60m",
                     "options": {
                         "temperature": 0.1,
-                        "num_ctx": 4096,
-                        "num_predict": 1024,
+                        "num_ctx": 8192,
+                        "num_predict": 3072,
                         "num_thread": 8
                     }
                 }
@@ -322,8 +322,8 @@ class GLMClient:
             "keep_alive": "60m",
             "options": {
                 "temperature": 0.1,
-                "num_ctx": 4096,
-                "num_predict": 1024,
+                "num_ctx": 8192,
+                "num_predict": 3072,
                 "num_thread": 8
             }
         }

@@ -1253,34 +1253,86 @@ class AutonomousOperatorAgent:
                 clean_body = re.sub(r"^```(?:json)?", "", body.strip(), flags=re.MULTILINE)
                 clean_body = re.sub(r"```$", "", clean_body.strip(), flags=re.MULTILINE).strip()
 
-                # Parse JSON using JSONDecoder.raw_decode
+                # Parse JSON using JSONDecoder.raw_decode and resilient auto-repair
                 action_data = None
                 start_brace = clean_body.find("{")
                 start_bracket = clean_body.find("[")
 
                 if start_brace != -1 and (start_bracket == -1 or start_brace < start_bracket):
                     try:
-                        decoder = json.JSONDecoder()
+                        decoder = json.JSONDecoder(strict=False)
                         parsed, _ = decoder.raw_decode(clean_body[start_brace:])
                         action_data = parsed
                     except Exception as ex:
-                        logger.warning(f"JSON raw_decode error: {ex}")
+                        logger.debug(f"Initial JSON raw_decode note: {ex}")
 
                 elif start_bracket != -1:
                     try:
-                        decoder = json.JSONDecoder()
+                        decoder = json.JSONDecoder(strict=False)
                         parsed, _ = decoder.raw_decode(clean_body[start_bracket:])
                         action_data = {"actions": parsed}
                     except Exception as ex:
-                        logger.warning(f"JSON list raw_decode error: {ex}")
+                        logger.debug(f"JSON list raw_decode note: {ex}")
 
-                if not action_data:
-                    match = re.search(r'\{[^{}]*\}', clean_body)
-                    if match:
+                # Heuristic 2: Substring between first { and last }
+                if not action_data and start_brace != -1:
+                    last_brace = clean_body.rfind("}")
+                    if last_brace > start_brace:
                         try:
-                            action_data = json.loads(match.group(0))
+                            action_data = json.loads(clean_body[start_brace:last_brace+1], strict=False)
                         except Exception:
                             pass
+
+                # Heuristic 3: Auto-repair truncated JSON (cut off mid-sentence or mid-token)
+                if not action_data and start_brace != -1:
+                    try:
+                        candidate = clean_body[start_brace:].strip()
+                        quotes = len(re.findall(r'(?<!\\)"', candidate))
+                        if quotes % 2 != 0:
+                            candidate += '"'
+                        stack = []
+                        in_str = False
+                        esc = False
+                        for ch in candidate:
+                            if ch == '\\' and not esc:
+                                esc = True
+                                continue
+                            if ch == '"' and not esc:
+                                in_str = not in_str
+                            elif not in_str:
+                                if ch in '{[':
+                                    stack.append('}' if ch == '{' else ']')
+                                elif ch in '}]':
+                                    if stack and stack[-1] == ch:
+                                        stack.pop()
+                            esc = False
+                        while stack:
+                            candidate += stack.pop()
+                        action_data = json.loads(candidate, strict=False)
+                        logger.info(f"Successfully repaired and parsed truncated action JSON: {action_data.get('action')}")
+                    except Exception as rep_err:
+                        logger.debug(f"JSON repair attempt note: {rep_err}")
+
+                # Heuristic 4: Regex fallback for action and common arguments
+                if not action_data:
+                    m_action = re.search(r'"action"\s*:\s*"([A-Za-z0-9_]+)"', clean_body)
+                    if m_action:
+                        act_name = m_action.group(1)
+                        extracted_args = {}
+                        for key in ["filepath", "file_path", "command", "cmd", "content", "old_code", "new_code", "directory", "pid"]:
+                            km = re.search(rf'"{key}"\s*:\s*"([^"]*)"', clean_body)
+                            if km:
+                                extracted_args[key] = km.group(1)
+                            elif key == "pid":
+                                pm = re.search(r'"pid"\s*:\s*(\d+)', clean_body)
+                                if pm:
+                                    extracted_args["pid"] = int(pm.group(1))
+                        action_data = {
+                            "action": act_name,
+                            "args": extracted_args,
+                            "reason": "Recovered from partial response via resilient pattern extraction"
+                        }
+                        logger.info(f"Recovered action '{act_name}' via regex fallback parser.")
 
                 if not action_data:
                     logger.warning(f"Could not parse valid action JSON. Body: {clean_body[:200]}")
