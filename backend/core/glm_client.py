@@ -108,10 +108,10 @@ class GLMClient:
                 "model": self.model
             }
 
-    def generate(self, prompt: str, system: Optional[str] = None, temperature: float = 0.2) -> str:
+    def generate(self, prompt: str, system: Optional[str] = None, temperature: float = 0.2, bypass_cache: bool = False) -> str:
         """Synchronous text generation with caching and fallback."""
         cache_key = self._hash_key(f"{system}:{prompt}:{temperature}")
-        if cache_key in self._cache:
+        if not bypass_cache and cache_key in self._cache:
             return self._cache[cache_key]
 
         if not self.enabled:
@@ -126,9 +126,9 @@ class GLMClient:
                     "keep_alive": "60m",
                     "options": {
                         "temperature": temperature,
-                        "num_ctx": 2048,
+                        "num_ctx": 4096,
                         "num_thread": 8,
-                        "num_predict": 512
+                        "num_predict": 1024
                     }
                 }
                 if system:
@@ -136,10 +136,15 @@ class GLMClient:
 
                 response = client.post(f"{self.host}/api/generate", json=payload)
                 if response.status_code == 200:
-                    text = response.json().get("response", "").strip()
-                    if len(self._cache) >= self._max_cache_size:
-                        self._cache.pop(next(iter(self._cache)))
-                    self._cache[cache_key] = text
+                    res_data = response.json()
+                    text = res_data.get("response", "").strip()
+                    thinking = res_data.get("thinking", "").strip()
+                    if thinking:
+                        text = f"<think>{thinking}</think>\n\n{text}"
+                    if not bypass_cache:
+                        if len(self._cache) >= self._max_cache_size:
+                            self._cache.pop(next(iter(self._cache)))
+                        self._cache[cache_key] = text
                     return text
                 else:
                     logger.warning(f"Ollama returned code {response.status_code}: {response.text}")
@@ -148,10 +153,10 @@ class GLMClient:
             logger.warning(f"AI generation failed: {e}")
             return ""
 
-    async def agenerate(self, prompt: str, system: Optional[str] = None, temperature: float = 0.2) -> str:
+    async def agenerate(self, prompt: str, system: Optional[str] = None, temperature: float = 0.2, bypass_cache: bool = False) -> str:
         """Asynchronous text generation with caching and fallback."""
         cache_key = self._hash_key(f"{system}:{prompt}:{temperature}")
-        if cache_key in self._cache:
+        if not bypass_cache and cache_key in self._cache:
             return self._cache[cache_key]
 
         if not self.enabled:
@@ -166,9 +171,9 @@ class GLMClient:
                     "keep_alive": "60m",
                     "options": {
                         "temperature": temperature,
-                        "num_ctx": 2048,
+                        "num_ctx": 4096,
                         "num_thread": 8,
-                        "num_predict": 512
+                        "num_predict": 1024
                     }
                 }
                 if system:
@@ -176,10 +181,15 @@ class GLMClient:
 
                 response = await client.post(f"{self.host}/api/generate", json=payload)
                 if response.status_code == 200:
-                    text = response.json().get("response", "").strip()
-                    if len(self._cache) >= self._max_cache_size:
-                        self._cache.pop(next(iter(self._cache)))
-                    self._cache[cache_key] = text
+                    res_data = response.json()
+                    text = res_data.get("response", "").strip()
+                    thinking = res_data.get("thinking", "").strip()
+                    if thinking:
+                        text = f"<think>{thinking}</think>\n\n{text}"
+                    if not bypass_cache:
+                        if len(self._cache) >= self._max_cache_size:
+                            self._cache.pop(next(iter(self._cache)))
+                        self._cache[cache_key] = text
                     return text
                 else:
                     logger.warning(f"Ollama async call returned code {response.status_code}")
@@ -187,6 +197,79 @@ class GLMClient:
         except Exception as e:
             logger.warning(f"AI async generation failed: {e}")
             return ""
+
+    async def astream_generate(self, prompt: str, system: Optional[str] = None, temperature: float = 0.1):
+        """
+        Asynchronous streaming generator yielding chunks from Ollama /api/generate in real-time.
+        Yields:
+          {"type": "thinking", "chunk": piece}
+          {"type": "response", "chunk": piece}
+          {"type": "done", "thinking": full_thinking, "response": full_response}
+        """
+        if not self.enabled:
+            yield {"type": "response", "chunk": "AI Engine Disabled"}
+            yield {"type": "done", "thinking": "", "response": "AI Engine Disabled"}
+            return
+
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": True,
+            "keep_alive": "60m",
+            "options": {
+                "temperature": temperature,
+                "num_ctx": 4096,
+                "num_thread": 8,
+                "num_predict": 1024
+            }
+        }
+        if system:
+            payload["system"] = system
+
+        full_thinking = []
+        full_response = []
+
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=10.0, read=90.0)) as client:
+                async with client.stream("POST", f"{self.host}/api/generate", json=payload) as response:
+                    if response.status_code != 200:
+                        err_msg = f"Ollama error: HTTP {response.status_code}"
+                        yield {"type": "response", "chunk": err_msg}
+                        yield {"type": "done", "thinking": "", "response": err_msg}
+                        return
+
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                            th = chunk.get("thinking", "")
+                            res = chunk.get("response", "")
+
+                            if th:
+                                full_thinking.append(th)
+                                yield {"type": "thinking", "chunk": th}
+                            elif res:
+                                full_response.append(res)
+                                yield {"type": "response", "chunk": res}
+
+                            if chunk.get("done", False):
+                                break
+                        except Exception:
+                            pass
+
+            yield {
+                "type": "done",
+                "thinking": "".join(full_thinking).strip(),
+                "response": "".join(full_response).strip()
+            }
+        except Exception as e:
+            logger.warning(f"astream_generate error: {e}")
+            yield {
+                "type": "done",
+                "thinking": "".join(full_thinking).strip(),
+                "response": "".join(full_response).strip() or f"Error: {e}"
+            }
 
     async def achat(self, messages: List[Dict[str, str]], temperature: float = 0.2) -> str:
         """Asynchronous multi-turn chat completion with GPU optimizations."""

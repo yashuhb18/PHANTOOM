@@ -185,3 +185,182 @@ async def get_neural_voice(text: str, voice: str = "en-US-ChristopherNeural"):
     except Exception as e:
         logger.error(f"Neural voice generation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class HuntRequest(BaseModel):
+    trigger_context: Optional[str] = "Manual operator / Sentinel trigger"
+    target_pid: Optional[int] = None
+    session_id: Optional[str] = None
+
+@router.post("/hunt")
+async def trigger_autonomous_hunt(req: HuntRequest):
+    """
+    Engages the Autonomous Hunter-Killer Agent on Kali Linux.
+    Runs Observe -> DeepSeek Reason (<think>) -> Execute -> Verify.
+    """
+    from backend.agent.hunter_killer import hunter_killer
+    report = await hunter_killer.engage_hunt(
+        trigger_context=req.trigger_context,
+        target_pid=req.target_pid,
+        session_id=req.session_id
+    )
+    return report
+
+class MissionRequest(BaseModel):
+    goal: str
+    max_steps: Optional[int] = 8
+    session_id: Optional[str] = None
+
+@router.post("/agent/mission")
+async def execute_agent_mission(req: MissionRequest):
+    """
+    Empowers the local DeepSeek model to run commands on its own,
+    kill processes, delete/quarantine files, or edit code inside the project folder.
+    """
+    if not req.goal.strip():
+        raise HTTPException(status_code=400, detail="Mission goal cannot be empty.")
+
+    from backend.agent.autonomous_operator import autonomous_operator
+    report = await autonomous_operator.run_mission(
+        mission_goal=req.goal,
+        max_steps=req.max_steps or 8,
+        session_id=req.session_id
+    )
+    return report
+
+class DirectToolRequest(BaseModel):
+    tool: str
+    args: Dict[str, Any]
+
+@router.post("/agent/tool")
+async def execute_agent_tool(req: DirectToolRequest):
+    """
+    Directly executes an agent tool on the host OS:
+    RUN_COMMAND, KILL_PROCESS, KILL_FILE, EDIT_CODE, READ_FILE, WRITE_FILE, LIST_FILES, LIST_PROCESSES.
+    """
+    from backend.agent.autonomous_operator import autonomous_operator
+    result = autonomous_operator.execute_tool(req.tool, req.args)
+    return result
+
+@router.get("/agent/telemetry")
+async def get_agent_os_telemetry():
+    """Returns active OS process candidates and quarantine status."""
+    from backend.agent.autonomous_operator import autonomous_operator, QUARANTINE_DIR
+    procs = autonomous_operator.tool_list_processes()
+    quarantined = [f.name for f in QUARANTINE_DIR.glob("*") if f.is_file()]
+    return {
+        "active_processes": procs.get("processes", []),
+        "quarantined_files": quarantined[:20],
+        "quarantine_count": len(quarantined),
+        "quarantine_path": str(QUARANTINE_DIR)
+    }
+
+class AgentPromptRequest(BaseModel):
+    prompt: str
+    session_id: Optional[str] = None
+    history: Optional[List[Dict[str, Any]]] = []
+
+@router.post("/agent/stream")
+async def stream_agent_mission(req: AgentPromptRequest):
+    """
+    Real-time Server-Sent Events (SSE) stream for Antigravity Autonomous Agent.
+    Yields STEP_START, THINKING_CHUNK, THINKING_COMPLETE, TOOL_START, TOOL_COMPLETE, STEP_COMPLETE, MISSION_COMPLETE.
+    """
+    if not req.prompt.strip():
+        raise HTTPException(status_code=400, detail="Prompt is empty.")
+
+    from backend.agent.autonomous_operator import autonomous_operator
+
+    async def sse_event_generator():
+        try:
+            async for event in autonomous_operator.stream_mission(
+                mission_goal=req.prompt,
+                max_steps=8,
+                session_id=req.session_id,
+                history=req.history
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            logger.error(f"Error in agent stream: {e}", exc_info=True)
+            err_event = {
+                "type": "MISSION_COMPLETE",
+                "goal": req.prompt,
+                "status": "ERROR",
+                "final_summary": f"Execution error: {str(e)}",
+                "steps": [],
+                "elapsed_ms": 0
+            }
+            yield f"data: {json.dumps(err_event)}\n\n"
+
+    return StreamingResponse(
+        sse_event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@router.post("/agent/prompt")
+async def handle_agent_prompt(req: AgentPromptRequest):
+    """
+    Unified agent endpoint: user types any prompt, and the agent
+    either answers directly or autonomously executes commands, kills processes/files,
+    or edits code, returning the exact steps taken and the final answer.
+    """
+    if not req.prompt.strip():
+        raise HTTPException(status_code=400, detail="Prompt is empty.")
+
+    from backend.agent.autonomous_operator import autonomous_operator
+    
+    prompt_lower = req.prompt.lower().strip()
+    greetings = ["hi", "hello", "hey", "hola", "sup", "greetings", "good morning", "good evening", "how are you"]
+    if prompt_lower in greetings or prompt_lower in ["hi!", "hello!", "hey!"]:
+        return {
+            "reply": "Hello! I am the PHANTOM Autonomous Agent powered by DeepSeek-R1. I have direct terminal execution, process kill, file quarantine, and code editing authority on this system.\n\nTell me what you'd like to do — for example:\n- `kill process <PID>`\n- `run command <bash>`\n- `delete file <path>`\n- `edit code in <file>`",
+            "thinking": "User offered a greeting. Responding conversationally without running OS commands.",
+            "steps": [],
+            "status": "READY",
+            "elapsed_ms": 1.2
+        }
+
+    action_keywords = [
+        "kill", "terminate", "stop process", "ps ", "rm ", "delete", "remove",
+        "edit", "modify", "change", "patch", "run command", "run ", "execute",
+        "ls", "cat", "bash", "grep", "quarantine", "clean", "purge", "write",
+        "mkdir", "touch", "find", "pkill"
+    ]
+    is_action_prompt = any(kw in prompt_lower for kw in action_keywords)
+
+    report = await autonomous_operator.run_mission(
+        mission_goal=req.prompt,
+        max_steps=6 if is_action_prompt else 4,
+        session_id=req.session_id,
+        history=req.history
+    )
+
+    steps = report.get("steps", [])
+    thinking = ""
+    for s in steps:
+        if s.get("thinking"):
+            thinking = s["thinking"]
+
+    return {
+        "reply": report.get("final_summary") or "Done.",
+        "thinking": thinking,
+        "steps": [
+            {
+                "step": s.get("step"),
+                "action": s.get("action"),
+                "args": s.get("args"),
+                "reason": s.get("reason"),
+                "result": s.get("result"),
+                "thinking": s.get("thinking")
+            }
+            for s in steps if s.get("action") != "FINISH"
+        ],
+        "status": report.get("status"),
+        "elapsed_ms": report.get("elapsed_ms")
+    }
+
+
