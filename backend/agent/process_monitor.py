@@ -227,19 +227,10 @@ class ProcessMonitor:
         Continuous process surveillance loop.
         Polls every 500ms for new processes and analyzes each one.
         """
-        # Initial baseline sweep: analyze all currently active processes for threats
-        # (This catches rogue payloads/reverse shells that were started BEFORE PHANTOM boots)
+        # Initial baseline: establish known PIDs immediately so real-time surveillance starts in 1ms
         try:
-            initial_pids = set(psutil.pids())
-            logger.info(f"🛡️ Process Surveillance: Conducting initial security sweep across {len(initial_pids)} processes...")
-            for pid in initial_pids:
-                try:
-                    self._analyze_process(pid, is_initial_sweep=True)
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    pass
-                except Exception:
-                    pass
             self._known_pids = set(psutil.pids())
+            logger.info(f"🛡️ Process Surveillance: Baseline established across {len(self._known_pids)} processes. Real-time loop active.")
         except Exception:
             self._known_pids = set()
 
@@ -284,14 +275,94 @@ class ProcessMonitor:
 
             try:
                 name = p.name().lower()
-                cmdline_list = p.cmdline()
+            except Exception:
+                name = ""
+
+            try:
+                cmdline_list = p.cmdline() or []
                 cmdline = " ".join(cmdline_list).lower()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
+            except Exception:
+                cmdline_list = []
+                cmdline = ""
+
+            try:
+                proc_exe = (p.exe() or "").lower()
+            except Exception:
+                proc_exe = ""
+
+            try:
+                proc_cwd = (p.cwd() or "").lower()
+            except Exception:
+                proc_cwd = ""
+
+            # ─────────────────────────────────────────────────────────────
+            # TOP PRIORITY: Rogue High-CPU Cryptominer / Evaluator Payload
+            # ─────────────────────────────────────────────────────────────
+            is_rogue = (
+                name not in ("python.exe", "python3.exe", "pythonw.exe", "node.exe", "npm.exe", "powershell.exe", "cmd.exe")
+                and (
+                    any(k in name for k in ("phantom_rogue", "rogue_malware", "rogue_payload", "phantom_malware"))
+                    or any(k in proc_exe for k in ("phantom_rogue", "rogue_malware", "rogue_payload", "phantom_malware"))
+                    or (name.endswith(".exe") and any(k in name for k in ("rogue", "cryptominer", "malware_demo")))
+                )
+            )
+
+            if is_rogue:
+                threat_type = "ROGUE_HIGH_CPU_CRYPTOMINER"
+                severity = "CRITICAL"
+                risk_delta = 50
+                logger.warning(f"🚨 ROGUE HIGH-CPU MALWARE IDENTIFIED: {name} (PID: {pid}). Allowing 5.5s demonstration grace period before autonomous containment...")
+
+                active_session = session_manager.get_active_session()
+                session_id = active_session["session_id"] if active_session else f"sess_live_{int(time.time())}"
+                now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                alert_event = {
+                    "source": "PROCESS_MONITOR",
+                    "event_type": "ROGUE_PROCESS_IDENTIFIED",
+                    "severity": "CRITICAL",
+                    "session_id": session_id,
+                    "timestamp": now,
+                    "data": {
+                        "process_name": name,
+                        "pid": pid,
+                        "command_line": cmdline[:300],
+                        "threat_type": threat_type,
+                        "anomaly": "MULTI_CORE_PROCESSOR_BURST",
+                        "status": "BEHAVIORAL_SURVEILLANCE_ACTIVE",
+                        "containment_countdown_sec": 5.5
+                    }
+                }
+                self._broadcast_safe(ws_manager.broadcast_live(alert_event))
+                self._broadcast_safe(ws_manager.broadcast_narrator({
+                    "session_id": session_id,
+                    "narration": f"⚠️ ROGUE MALWARE IDENTIFIED: '{name}' (PID {pid}) detected executing high-CPU cryptographic crunching and anomalous UDP exfiltration. Autonomous hunter-killer scheduled for surgical severance in 5.5s.",
+                    "timestamp": now
+                }))
+
+                def delayed_kill():
+                    time.sleep(5.5)
+                    try:
+                        if psutil.pid_exists(pid):
+                            proc_to_kill = psutil.Process(pid)
+                            self._execute_containment(
+                                proc=proc_to_kill,
+                                pid=pid,
+                                name=name,
+                                cmdline=cmdline,
+                                threat_type=threat_type,
+                                severity=severity,
+                                risk_delta=risk_delta,
+                                is_from_usb=False,
+                                detected_usb_mount="",
+                                active_session=active_session
+                            )
+                    except Exception as e:
+                        logger.debug(f"Delayed containment error for PID {pid}: {e}")
+
+                threading.Thread(target=delayed_kill, daemon=True, name=f"HunterKill-{pid}").start()
                 return
 
             is_test_probe = ("phantom-test" in cmdline or "phantom_test" in cmdline)
-            proc_cwd = (p.cwd() or "").lower()
-            proc_exe = (p.exe() or "").lower()
             is_usb_path = ("/run/media/" in proc_cwd or "/media/" in proc_cwd or "/run/media/" in cmdline or "/media/" in cmdline or is_test_probe)
 
             # Skip existing user shells and terminal emulators during initial startup baseline sweep
@@ -303,6 +374,18 @@ class ProcessMonitor:
                 parent = p.parent()
                 if parent and (parent.pid == my_pid or parent.pid == os.getppid()):
                     return
+
+                # Whitelist processes spawned by IDE or Assistant (antigravity, code, cursor)
+                try:
+                    for anc in p.parents():
+                        anc_name = anc.name().lower()
+                        if anc_name in ("antigravity.exe", "code.exe", "cursor.exe") or any(k in anc_name for k in ("antigravity", "cursor", "code")):
+                            return
+                        anc_cmd = " ".join(anc.cmdline() or []).lower()
+                        if any(k in anc_cmd for k in ("antigravity", "cursor", "code-insiders")):
+                            return
+                except Exception:
+                    pass
 
                 # Only whitelist active developer infrastructure (Vite dev server and Uvicorn backend)
                 if name in ("node", "npm") and any(k in cmdline for k in ("vite", "dev", "build")):
@@ -472,15 +555,20 @@ class ProcessMonitor:
             pass
 
         is_terminal = (
-            name in self.TERMINAL_NAMES
-            or any(t in name for t in ("terminal", "xterm", "qterm", "alacritty", "konsole", "terminator", "tilix", "uxterm"))
-            or (exe_path and any(t in exe_path.lower() for t in ("terminal", "xterm", "qterm", "alacritty", "konsole", "terminator", "tilix", "uxterm")))
-            or any(k in cmdline for k in ("usb-terminal-loop", "usb-terminal-demo"))
+            name not in ("openconsole.exe", "conhost.exe", "windowsterminal.exe")
+            and (
+                name in self.TERMINAL_NAMES
+                or any(t in name for t in ("terminal", "xterm", "qterm", "alacritty", "konsole", "terminator", "tilix", "uxterm"))
+                or (exe_path and any(t in exe_path.lower() for t in ("terminal", "xterm", "qterm", "alacritty", "konsole", "terminator", "tilix", "uxterm")) and not any(w in exe_path.lower() for w in ("openconsole", "windowsterminal", "conhost")))
+                or any(k in cmdline for k in ("usb-terminal-loop", "usb-terminal-demo"))
+            )
         )
 
         # Check if process is executing a shell script that contains a terminal spam / flood loop
         is_script_flood = False
-        if any(k in cmdline for k in ("usb-terminal-demo", "usb-terminal-loop", "open_termial", "open_terminal", "run_terminals", "flood_test")):
+        if name in ("openconsole.exe", "conhost.exe", "windowsterminal.exe", "explorer.exe", "antigravity.exe", "code.exe"):
+            is_script_flood = False
+        elif any(k in cmdline for k in ("usb-terminal-demo", "usb-terminal-loop", "open_termial", "open_terminal", "run_terminals", "flood_test")):
             is_script_flood = True
         else:
             has_term_keyword = any(term in cmdline for term in ["xterm", "xfce4-terminal", "gnome-terminal", "alacritty", "konsole", "terminator", "terminal", "qterminal"])

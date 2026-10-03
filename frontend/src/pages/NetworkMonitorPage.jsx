@@ -40,14 +40,13 @@ import {
 
 export function NetworkMonitorPage() {
   // Navigation Sections:
-  // 'arena'    -> Rogue .EXE Hunter-Killer Arena (High-CPU .exe detection & autonomous kill demo)
+  // 'dpi'      -> Deep Packet Inspector (Wireshark 3-pane: Stream, Dissection, Hex)
   // 'story'    -> Threat Story & Interactive Attack Graph
   // 'proc_net' -> Process ↔ Network Map (UDP & TCP Trees, SHA256, File Attribution)
-  // 'dpi'      -> Deep Packet Inspector (Wireshark 3-pane: Stream, Dissection, Hex)
   // 'dns'      -> DNS Monitor & Resolver Intelligence
   // 'evidence' -> PCAP-style Network Evidence & Protocol Distribution
   // 'adapters' -> Physical NIC Hardware Adapters
-  const [activeSection, setActiveSection] = useState('arena');
+  const [activeSection, setActiveSection] = useState('dpi');
 
   // Core Hardware & Bandwidth Telemetry
   const [telemetry, setTelemetry] = useState(null);
@@ -60,22 +59,6 @@ export function NetworkMonitorPage() {
   const [threatStories, setThreatStories] = useState([]);
   const [attackGraph, setAttackGraph] = useState({ nodes: [], edges: [] });
   const [evidenceData, setEvidenceData] = useState(null);
-
-  // Rogue .EXE Hunter-Killer Arena State
-  const [rogueStatus, setRogueStatus] = useState({
-    is_running: false,
-    pid: null,
-    status: 'IDLE',
-    process_cpu: 0,
-    process_memory_mb: 0,
-    threads_count: 0,
-    system_cpu_total: 0,
-    auto_kill_enabled: true,
-    mitigation_time_seconds: null,
-    logs: []
-  });
-  const [isLaunchingRogue, setIsLaunchingRogue] = useState(false);
-  const [isKillingRogue, setIsKillingRogue] = useState(false);
 
   // Interactive Selection State
   const [selectedGraphNode, setSelectedGraphNode] = useState(null);
@@ -151,27 +134,7 @@ export function NetworkMonitorPage() {
     };
   }, []);
 
-  // Poll Rogue .EXE Status (Faster 600ms polling for live CPU responsiveness)
-  useEffect(() => {
-    let mounted = true;
-    const pollRogue = async () => {
-      try {
-        const res = await fetch(`http://${window.location.hostname}:8001/api/network/edr/rogue-status`);
-        if (res.ok && mounted) {
-          const data = await res.json();
-          setRogueStatus(data);
-        }
-      } catch (err) {
-        // ignore in background
-      }
-    };
-    pollRogue();
-    const interval = setInterval(pollRogue, 600);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
+
 
   // EDR Data Polling Loop
   const fetchEdrData = useCallback(async () => {
@@ -242,61 +205,7 @@ export function NetworkMonitorPage() {
     }
   }, [packets, autoScroll, activeSection]);
 
-  // Launch Rogue .EXE
-  const handleLaunchRogueExe = async () => {
-    setIsLaunchingRogue(true);
-    try {
-      const res = await fetch(`http://${window.location.hostname}:8001/api/network/edr/launch-rogue-exe`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showToast('success', `🚀 Rogue Binary Executed: phantom_rogue_payload.exe (PID: ${data.pid})! Watch CPU load.`);
-      } else {
-        showToast('error', data.error || 'Failed to launch rogue binary.');
-      }
-    } catch (err) {
-      showToast('error', err.message);
-    } finally {
-      setIsLaunchingRogue(false);
-    }
-  };
 
-  // Kill Rogue .EXE
-  const handleKillRogueExe = async () => {
-    setIsKillingRogue(true);
-    try {
-      const res = await fetch(`http://${window.location.hostname}:8001/api/network/edr/kill-rogue-exe`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showToast('success', `🛑 Rogue Process PID ${data.pid} Annihilated! CPU restored to baseline.`);
-      } else {
-        showToast('error', data.message || 'Failed to terminate rogue process.');
-      }
-    } catch (err) {
-      showToast('error', err.message);
-    } finally {
-      setIsKillingRogue(false);
-    }
-  };
-
-  // Toggle Auto-Kill
-  const handleToggleAutoKill = async () => {
-    try {
-      const res = await fetch(`http://${window.location.hostname}:8001/api/network/edr/toggle-auto-kill`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setRogueStatus(prev => ({ ...prev, auto_kill_enabled: data.auto_kill_enabled }));
-        showToast('success', data.auto_kill_enabled ? 'Autonomous Auto-Kill Mode: ACTIVE' : 'Autonomous Auto-Kill: DISABLED (Manual Mode)');
-      }
-    } catch (err) {
-      showToast('error', err.message);
-    }
-  };
 
   // Trigger Demo Attack Chain
   const handleTriggerDemoChain = async () => {
@@ -494,18 +403,6 @@ export function NetworkMonitorPage() {
         {/* Global Controls */}
         <div className="flex items-center gap-2.5 w-full md:w-auto justify-end flex-wrap">
           <button
-            onClick={() => setActiveSection('arena')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-mono font-extrabold transition-all cursor-pointer border ${
-              activeSection === 'arena'
-                ? 'bg-[#FDE047] text-black border-[#FDE047] shadow-lg shadow-[#FDE047]/20'
-                : 'bg-white/[0.04] text-white border-white/[0.1] hover:bg-white/[0.08]'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5" />
-            <span>Rogue .EXE Arena</span>
-          </button>
-
-          <button
             onClick={handleTriggerDemoChain}
             disabled={isDemoRunning}
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer disabled:opacity-50"
@@ -550,46 +447,42 @@ export function NetworkMonitorPage() {
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FDE047]" />
         </div>
 
-        {/* Live Processor Load (System CPU) */}
+        {/* Active Sockets / Connections */}
         <div className="bg-[#141414] border border-white/[0.08] rounded-[24px] p-5 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-mono uppercase mb-2">
-            <span>System CPU Load</span>
-            <Gauge className="w-4 h-4 text-neutral-400" />
+            <span>Network Sockets</span>
+            <Radio className="w-4 h-4 text-neutral-400" />
           </div>
           <div className="text-2xl font-bold font-mono text-white tracking-tight flex items-center justify-between">
-            <span>{rogueStatus.system_cpu_total}%</span>
-            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-              rogueStatus.system_cpu_total > 50 ? 'bg-[#FDE047] text-black animate-pulse' : 'bg-white/10 text-white'
-            }`}>
-              {rogueStatus.system_cpu_total > 50 ? 'HIGH SPIKE' : 'NORMAL'}
+            <span>{current.active_connections || packets.length || 0}</span>
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">
+              MONITORED
             </span>
           </div>
           <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500 mt-2">
-            <span>Rogue Process CPU:</span>
-            <span className={`font-bold ${rogueStatus.process_cpu > 40 ? 'text-[#FDE047]' : 'text-neutral-400'}`}>
-              {rogueStatus.process_cpu}%
-            </span>
+            <span>Dissected Packets:</span>
+            <span className="text-white font-bold">{packets.length}</span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-neutral-700" />
         </div>
 
-        {/* Behavioral Threat Score */}
+        {/* Peak Threat Risk */}
         <div className="bg-[#141414] border border-white/[0.08] rounded-[24px] p-5 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between text-neutral-400 text-xs font-mono uppercase mb-2">
             <span>Peak Threat Risk</span>
             <AlertTriangle className="w-4 h-4 text-[#FDE047]" />
           </div>
           <div className="text-2xl font-bold font-mono text-[#FDE047] tracking-tight flex items-center justify-between">
-            <span>{rogueStatus.is_running ? '98/100' : '86/100'}</span>
+            <span>{primaryThreat ? `${primaryThreat.risk_score}/100` : '0/100'}</span>
             <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-              rogueStatus.is_running ? 'bg-[#FDE047] text-black' : 'bg-white/10 text-white'
+              primaryThreat?.risk_score > 70 ? 'bg-[#FDE047] text-black' : 'bg-emerald-500/10 text-emerald-400'
             }`}>
-              {rogueStatus.is_running ? 'CRITICAL' : 'CONTAINED'}
+              {primaryThreat ? primaryThreat.risk_level : 'NORMAL'}
             </span>
           </div>
           <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500 mt-2">
-            <span>Hunter Status:</span>
-            <span className="text-white font-bold">{rogueStatus.status}</span>
+            <span>Incident Status:</span>
+            <span className="text-white font-bold">{primaryThreat ? primaryThreat.status : 'SECURE'}</span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FDE047]" />
         </div>
@@ -599,18 +492,15 @@ export function NetworkMonitorPage() {
       <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 overflow-x-auto">
         <div className="flex items-center p-1 bg-[#141414] rounded-full border border-white/[0.08] min-w-max">
           <button
-            onClick={() => setActiveSection('arena')}
+            onClick={() => setActiveSection('dpi')}
             className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              activeSection === 'arena'
+              activeSection === 'dpi'
                 ? 'bg-[#FDE047] text-black shadow-lg shadow-[#FDE047]/10'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
-            <Flame className="w-3.5 h-3.5" />
-            <span>🔥 Rogue .EXE Hunter Arena</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-black text-[#FDE047]">
-              DEMO
-            </span>
+            <Crosshair className="w-3.5 h-3.5" />
+            <span>Deep Packet Inspector (DPI)</span>
           </button>
 
           <button
@@ -635,18 +525,6 @@ export function NetworkMonitorPage() {
           >
             <Cpu className="w-3.5 h-3.5" />
             <span>Process ↔ Network Map</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSection('dpi')}
-            className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              activeSection === 'dpi'
-                ? 'bg-[#FDE047] text-black shadow-lg shadow-[#FDE047]/10'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Crosshair className="w-3.5 h-3.5" />
-            <span>Deep Packet Inspector (DPI)</span>
           </button>
 
           <button
@@ -686,213 +564,6 @@ export function NetworkMonitorPage() {
           </button>
         </div>
       </div>
-
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1: ROGUE .EXE HIGH-CPU & AUTONOMOUS HUNTER-KILLER ARENA */}
-      {/* ══════════════════════════════════════════════════════════════════════ */}
-      {activeSection === 'arena' && (
-        <div className="space-y-6 animate-fade-in">
-          
-          {/* Main Mission Control Card */}
-          <div className="bg-[#141414] border border-[#FDE047]/30 rounded-[28px] p-6 shadow-2xl space-y-6">
-            
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 rounded-full bg-[#FDE047] text-black text-xs font-mono font-extrabold flex items-center gap-1.5">
-                    <Flame className="w-3.5 h-3.5 fill-black" />
-                    LIVE COMBAT DEMO
-                  </span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold border ${
-                    rogueStatus.is_running
-                      ? 'bg-[#FDE047]/10 text-[#FDE047] border-[#FDE047] animate-pulse'
-                      : rogueStatus.status === 'TERMINATED'
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                      : 'bg-white/5 text-neutral-400 border-white/10'
-                  }`}>
-                    {rogueStatus.is_running ? '🔥 ANOMALY ACTIVE · HIGH CPU SPIKE' : rogueStatus.status === 'TERMINATED' ? '✅ THREAT NEUTRALIZED' : 'STANDBY'}
-                  </span>
-                </div>
-                <h2 className="text-lg font-bold text-white mt-2">
-                  Rogue Executable (.EXE) High-CPU Detection & Autonomous Hunter-Killer
-                </h2>
-                <p className="text-xs text-neutral-400 mt-1">
-                  Spawns standalone binary <code className="text-[#FDE047]">phantom_rogue_payload.exe</code> ➔ Multi-core CPU spikes to 75-95% ➔ PHANTOM detects anomaly and executes autonomous kill.
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3 w-full lg:w-auto justify-end flex-wrap">
-                <button
-                  onClick={handleLaunchRogueExe}
-                  disabled={isLaunchingRogue || rogueStatus.is_running}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FDE047] hover:bg-[#FACC15] text-black text-xs font-mono font-extrabold transition-all cursor-pointer shadow-lg shadow-[#FDE047]/20 disabled:opacity-50"
-                >
-                  <Play className="w-4 h-4 fill-black" />
-                  <span>{isLaunchingRogue ? 'Launching...' : '🚀 Launch Rogue .EXE'}</span>
-                </button>
-
-                <button
-                  onClick={handleKillRogueExe}
-                  disabled={isKillingRogue || !rogueStatus.is_running}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer disabled:opacity-40"
-                >
-                  <XCircle className="w-4 h-4 text-[#FDE047]" />
-                  <span>{isKillingRogue ? 'Killing...' : '🛑 Manual Kill Now'}</span>
-                </button>
-
-                <button
-                  onClick={handleToggleAutoKill}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-mono font-bold transition-all cursor-pointer border ${
-                    rogueStatus.auto_kill_enabled
-                      ? 'bg-[#FDE047]/10 text-[#FDE047] border-[#FDE047]/40'
-                      : 'bg-white/[0.02] text-neutral-400 border-white/[0.08]'
-                  }`}
-                  title="Toggle whether PHANTOM autonomously kills rogue processes within 2.5s"
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>Auto-Kill: {rogueStatus.auto_kill_enabled ? 'ON (2.5s Auto)' : 'OFF (Manual)'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Live CPU & Anomaly Telemetry Gauges */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              
-              {/* Gauge 1: Process CPU Load */}
-              <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-white/[0.08] relative overflow-hidden font-mono">
-                <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
-                  <span>Rogue Process CPU Load</span>
-                  <Cpu className="w-4 h-4 text-[#FDE047]" />
-                </div>
-                <div className="text-3xl font-extrabold text-white tracking-tight flex items-baseline gap-2">
-                  <span className={rogueStatus.process_cpu > 40 ? 'text-[#FDE047]' : 'text-white'}>
-                    {rogueStatus.process_cpu}%
-                  </span>
-                  <span className="text-xs text-neutral-400 font-normal">core load</span>
-                </div>
-                {/* Visual Bar */}
-                <div className="w-full bg-neutral-800 h-2 rounded-full mt-3 overflow-hidden">
-                  <div
-                    className="h-full bg-[#FDE047] transition-all duration-300"
-                    style={{ width: `${Math.min(100, rogueStatus.process_cpu)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-neutral-500 mt-2">
-                  <span>PID: {rogueStatus.pid || 'None'}</span>
-                  <span>Threads: {rogueStatus.threads_count}</span>
-                </div>
-              </div>
-
-              {/* Gauge 2: Overall System Processor */}
-              <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-white/[0.08] relative overflow-hidden font-mono">
-                <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
-                  <span>Total System Processor</span>
-                  <Gauge className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-3xl font-extrabold text-white tracking-tight flex items-baseline gap-2">
-                  <span>{rogueStatus.system_cpu_total}%</span>
-                  <span className="text-xs text-neutral-400 font-normal">all cores</span>
-                </div>
-                <div className="w-full bg-neutral-800 h-2 rounded-full mt-3 overflow-hidden">
-                  <div
-                    className="h-full bg-white transition-all duration-300"
-                    style={{ width: `${Math.min(100, rogueStatus.system_cpu_total)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-neutral-500 mt-2">
-                  <span>Baseline: ~2.5%</span>
-                  <span>Threshold: 50.0%</span>
-                </div>
-              </div>
-
-              {/* Metric 3: Time to Mitigate */}
-              <div className="p-5 rounded-2xl bg-[#0A0A0A] border border-white/[0.08] relative overflow-hidden font-mono">
-                <div className="flex items-center justify-between text-neutral-400 text-xs mb-2">
-                  <span>Mitigation Benchmark</span>
-                  <ShieldCheck className="w-4 h-4 text-[#FDE047]" />
-                </div>
-                <div className="text-3xl font-extrabold text-[#FDE047] tracking-tight flex items-baseline gap-2">
-                  <span>{rogueStatus.mitigation_time_seconds ? `${rogueStatus.mitigation_time_seconds}s` : (rogueStatus.is_running ? 'Hunting...' : 'Standby')}</span>
-                </div>
-                <p className="text-[11px] text-neutral-400 mt-2 leading-relaxed">
-                  Autonomous surveillance loop reaction time from anomaly identification to full socket and process severance.
-                </p>
-              </div>
-
-            </div>
-
-            {/* Target Process Forensic Blueprint */}
-            <div className="p-4 rounded-2xl bg-[#0A0A0A] border border-white/[0.06] font-mono text-xs space-y-2">
-              <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
-                <div className="flex items-center gap-2 text-white font-bold">
-                  <Terminal className="w-3.5 h-3.5 text-[#FDE047]" />
-                  <span>Target Process Blueprint: phantom_rogue_payload.exe</span>
-                </div>
-                <span className="text-[#FDE047] font-bold">Classification: CRYPTOMINER / RESOURCE HIJACK</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-[11px] pt-1">
-                <div>
-                  <span className="text-neutral-500 block">Process PID:</span>
-                  <span className="text-white font-bold">{rogueStatus.pid || 'Inactive'}</span>
-                </div>
-                <div>
-                  <span className="text-neutral-500 block">Memory Footprint:</span>
-                  <span className="text-white font-bold">{rogueStatus.process_memory_mb} MB</span>
-                </div>
-                <div>
-                  <span className="text-neutral-500 block">Digital Signature:</span>
-                  <span className="text-[#FDE047] font-bold">UNSIGNED (Heuristic Match)</span>
-                </div>
-                <div>
-                  <span className="text-neutral-500 block">Execution Path:</span>
-                  <span className="text-neutral-300 truncate block">d:\PHANTOOM\tools\phantom_rogue_payload.exe</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Forensic Hunter-Killer Audit Ledger */}
-            <div className="space-y-2 font-mono">
-              <div className="flex items-center justify-between text-xs text-neutral-400 border-b border-white/[0.06] pb-2">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-3.5 h-3.5 text-[#FDE047]" />
-                  <span className="font-bold text-white uppercase tracking-wider">Hunter-Killer Execution Timeline</span>
-                </div>
-                <span>{rogueStatus.logs.length} Milestones Recorded</span>
-              </div>
-
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {rogueStatus.logs.length === 0 ? (
-                  <div className="p-6 text-center text-neutral-500 text-xs">
-                    Click <strong>Launch Rogue .EXE</strong> above to trigger the live high-CPU anomaly and watch PHANTOM's hunter-killer agent execute real-time containment.
-                  </div>
-                ) : (
-                  rogueStatus.logs.map((log, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2.5 rounded-xl bg-[#0A0A0A] border border-white/[0.06] flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-neutral-500 text-[10px]">{log.time}</span>
-                        <span className={`px-2 py-0.2 rounded text-[9px] font-bold ${
-                          log.type === 'KILL' ? 'bg-[#FDE047] text-black font-extrabold' : 'bg-white/5 text-[#FDE047]'
-                        }`}>
-                          {log.type}
-                        </span>
-                        <span className="text-white font-bold">{log.title}</span>
-                      </div>
-                      <span className="text-neutral-400 text-[11px] truncate max-w-sm">{log.detail}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* SECTION 2: THREAT STORY & ENDPOINT ATTACK GRAPH */}
