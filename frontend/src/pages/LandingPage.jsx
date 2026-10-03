@@ -74,10 +74,6 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
 
-  // Presentation Mode Toggle: hides links/buttons redirecting to login or console
-  // Set to false whenever user instructs to unhide
-  const HIDE_AUTH_LINKS = true;
-
   // When user visits or returns to the main landing page, automatically log out
   useEffect(() => {
     if (isAuthenticated) {
@@ -163,32 +159,28 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
               </span>
             </button>
 
-            {!HIDE_AUTH_LINKS && (
-              <>
-                <button
-                  onClick={onOpenLogin}
-                  className={`font-semibold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full transition-all duration-300 cursor-pointer ${
-                    isScrolled
-                      ? 'text-neutral-300 hover:text-white'
-                      : 'text-black/80 hover:text-black'
-                  }`}
-                >
-                  <span>Log In</span>
-                </button>
+            <button
+              onClick={onOpenLogin}
+              className={`font-semibold text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full transition-all duration-300 cursor-pointer ${
+                isScrolled
+                  ? 'text-neutral-300 hover:text-white'
+                  : 'text-black/80 hover:text-black'
+              }`}
+            >
+              <span>Log In</span>
+            </button>
 
-                <button
-                  onClick={onOpenLogin}
-                  className={`font-bold text-xs sm:text-sm px-4 sm:px-5 py-1.5 sm:py-2 rounded-full pill-button shadow-md flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 ${
-                    isScrolled
-                      ? 'bg-[#FDE047] hover:bg-[#FACC15] text-black shadow-[0_0_15px_rgba(253,224,71,0.3)]'
-                      : 'bg-black hover:bg-neutral-900 text-white'
-                  }`}
-                >
-                  <span>Get Started</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </>
-            )}
+            <button
+              onClick={onOpenLogin}
+              className={`font-bold text-xs sm:text-sm px-4 sm:px-5 py-1.5 sm:py-2 rounded-full pill-button shadow-md flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 ${
+                isScrolled
+                  ? 'bg-[#FDE047] hover:bg-[#FACC15] text-black shadow-[0_0_15px_rgba(253,224,71,0.3)]'
+                  : 'bg-black hover:bg-neutral-900 text-white'
+              }`}
+            >
+              <span>Get Started</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </header>
@@ -227,22 +219,19 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
             {/* Pill CTA Buttons */}
             <div className="flex flex-wrap items-center gap-4 mb-12 anim-buttons">
-              {!HIDE_AUTH_LINKS && (
-                <button
-                  onClick={onOpenLogin}
-                  className="bg-black hover:bg-neutral-900 text-white font-bold text-base px-8 py-4 rounded-full pill-button shadow-xl flex items-center gap-2.5 cursor-pointer"
-                >
-                  <span>Get Started</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              )}
+              <button
+                onClick={onOpenLogin}
+                className="bg-black hover:bg-neutral-900 text-white font-bold text-base px-8 py-4 rounded-full pill-button shadow-xl flex items-center gap-2.5 cursor-pointer"
+              >
+                <span>Get Started</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
 
               <a
                 href="#demo"
-                className="bg-black hover:bg-neutral-900 text-white font-bold text-base px-8 py-4 rounded-full pill-button shadow-xl inline-flex items-center gap-2"
+                className="bg-transparent hover:bg-black/5 text-black font-bold text-base px-8 py-4 rounded-full border-2 border-black/20 hover:border-black/40 pill-button transition-all inline-flex items-center gap-2"
               >
-                <span>Explore Features</span>
-                <ArrowRight className="w-5 h-5" />
+                <span>View Demo</span>
               </a>
             </div>
 
@@ -670,15 +659,13 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
               <span className="text-xs text-neutral-400 font-mono">
                 Frame {terminalStep + 1} of {terminalLogs.length} • Autonomous enforcer armed
               </span>
-              {!HIDE_AUTH_LINKS && (
-                <button
-                  onClick={onOpenLogin}
-                  className="bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-xs px-5 py-2 rounded-full pill-button transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  <span>Launch Console</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button
+                onClick={onOpenLogin}
+                className="bg-[#FDE047] hover:bg-[#FACC15] text-black font-bold text-xs px-5 py-2 rounded-full pill-button transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Launch Console</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
 
           </div>
@@ -736,17 +723,15 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
               </p>
             </div>
 
-            {!HIDE_AUTH_LINKS && (
-              <div className="shrink-0">
-                <button
-                  onClick={onOpenLogin}
-                  className="bg-black hover:bg-neutral-900 text-white font-bold text-base px-9 py-4 rounded-full pill-button shadow-2xl flex items-center gap-3 cursor-pointer"
-                >
-                  <span>Get Started Now</span>
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            )}
+            <div className="shrink-0">
+              <button
+                onClick={onOpenLogin}
+                className="bg-black hover:bg-neutral-900 text-white font-bold text-base px-9 py-4 rounded-full pill-button shadow-2xl flex items-center gap-3 cursor-pointer"
+              >
+                <span>Get Started Now</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
 
           </div>
         </div>
@@ -773,11 +758,9 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             <a href="#features" className="hover:text-white transition-colors">Features</a>
             <a href="#architecture" className="hover:text-white transition-colors">Architecture</a>
             <a href="#benchmarks" className="hover:text-white transition-colors">Benchmarks</a>
-            {!HIDE_AUTH_LINKS && (
-              <button onClick={onOpenLogin} className="text-[#FDE047] hover:underline font-bold">
-                Get Started →
-              </button>
-            )}
+            <button onClick={onOpenLogin} className="text-[#FDE047] hover:underline font-bold">
+              Get Started →
+            </button>
           </div>
 
           <div>
