@@ -154,7 +154,7 @@ async def analyze_script(req: ScriptAnalysisRequest):
 @router.post("/regenerate-report/{session_id}")
 def regenerate_report(session_id: str):
     """Forces GLM-4 to re-analyze and regenerate the executive forensic report for a session."""
-    report = ai_analyst.generate_incident_report(session_id=session_id, force_regenerate=True)
+    report = ai_analyst.generate_incident_report(session_id=session_id, force_regenerate=True, use_ai=True)
     if "error" in report:
         raise HTTPException(status_code=404, detail=report["error"])
     return report

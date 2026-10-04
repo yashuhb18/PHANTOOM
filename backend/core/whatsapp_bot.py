@@ -26,6 +26,23 @@ logger = logging.getLogger("phantom.whatsapp")
 
 CONFIG_FILE = os.path.expanduser("~/.phantom_whatsapp_config.json")
 
+THREAT_NAME_MAP = {
+    "KEYSTROKE_INJECTION": "Keystroke Injection (Rubber Ducky)",
+    "KEYSTROKE_INJECTION_DETECTED": "Keystroke Injection (Rubber Ducky)",
+    "USB_TRIGGERED_SCRIPT_HOST": "USB-Triggered Script Execution",
+    "ROGUE_ERROR_FLOOD_PAYLOAD": "Rogue Process Flood Attack",
+    "RUNAWAY_HIGH_PROCESSOR_ABUSE": "Host CPU Glitch / Resource Abuse",
+    "ROGUE_HIGH_CPU_GLITCH_PAYLOAD": "Rogue CPU Spike Glitch",
+    "BATCH_ATTACK_LAUNCHER": "Autonomous Batch Payload Launcher",
+    "CANARY_DECEPTION": "Canary Honeypot Trap Tripped",
+    "CANARY_FILE_TAMPERING": "Decoy Honeypot File Tampering",
+    "DNA_FINGERPRINT_MATCH": "Hardware DNA Threat Recurrence",
+    "SUSPICIOUS_PROCESS_SPAWNED": "Unauthorized Process Execution",
+    "USB_UNAUTHORIZED": "Unauthorized Physical Peripheral",
+    "USB_THREAT_AWAITING_USER_EJECT": "Adversary Payload Isolated (Awaiting Eject)",
+    "USB_SCAN_COMPLETE": "Deep USB Peripheral Audit Complete",
+}
+
 class WhatsAppBotManager:
     """Manages automated WhatsApp alert dispatching and interactive SOC bot commands."""
 
@@ -64,6 +81,8 @@ class WhatsAppBotManager:
             "callmebot_apikey": "",      # Free CallMeBot API Key
             "openwa_rest_url": "http://127.0.0.1:8085/api/sendText",
             "ntfy_topic": "phantom_alerts",
+            "ntfy_icon": "https://raw.githubusercontent.com/yashuhb18/PHANTOOM/main/frontend/public/phantom-icon-yellow.png",
+            "console_url": "http://localhost:3000",
             "auto_alert_severity": ["CRITICAL", "HIGH"],
             "bot_name": "PHANTOM SOC Sentinel"
         }
@@ -177,50 +196,118 @@ class WhatsAppBotManager:
         if not self.config.get("enabled", True):
             return
 
+        sev = (severity or "CRITICAL").upper()
+        clean_threat = THREAT_NAME_MAP.get(threat_type.upper().strip(), threat_type.replace('_', ' ').title())
         now_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+
+        # Clean target and details
+        target_clean = target.strip() if target else "Physical Host Interface"
+        details_clean = details.strip() if details else "Autonomous kernel intervention executed."
+        if len(details_clean) > 200:
+            details_clean = details_clean[:197] + "..."
+
+        # Priority & visual status based on severity
+        if sev == "CRITICAL":
+            ntfy_priority = 5
+            ntfy_tags = ["shield", "zap", "rotating_light"]
+            ntfy_title = f"🛡️ PHANTOM: {clean_threat} Neutralized"
+            header_badge = "⚡ AUTONOMOUS CONTAINMENT ENGAGED"
+            action_desc = "Host sockets severed & rogue PID terminated (<0.8s)"
+        elif sev == "HIGH":
+            ntfy_priority = 4
+            ntfy_tags = ["shield", "warning"]
+            ntfy_title = f"⚠️ PHANTOM: {clean_threat} Intercepted"
+            header_badge = "⚠️ ANOMALOUS PERIPHERAL BEHAVIOR"
+            action_desc = "Process isolated under kernel surveillance"
+        else:
+            ntfy_priority = 3
+            ntfy_tags = ["shield", "information_source"]
+            ntfy_title = f"🛡️ PHANTOM: {clean_threat}"
+            header_badge = "ℹ️ PERIPHERAL TELEMETRY NOTIFICATION"
+            action_desc = "Telemetry event recorded & audited"
+
+        # Rich Markdown notification body formatted specifically for mobile lock-screens & ntfy
+        ntfy_body = (
+            f"### {header_badge}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"• **Threat:** {clean_threat}\n"
+            f"• **Severity:** `{sev}` [Level {5 if sev == 'CRITICAL' else 4 if sev == 'HIGH' else 3}]\n"
+            f"• **Target:** `{target_clean}`\n"
+            f"• **Containment:** {action_desc}\n"
+            f"• **Details:** {details_clean}\n"
+            f"• **Timestamp:** {now_str}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔒 *Machine defended at kernel physical layer by PHANTOM*"
+        )
+
+        # Standard plain-text alert for DB record and fallback gateways
         alert_body = (
             f"🛡️ *PHANTOM ZERO-TRUST SOC ALERT* 🚨\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⚠️ *Severity:* `{severity}`\n"
-            f"🎯 *Threat:* *{threat_type.replace('_', ' ')}*\n"
-            f"📝 *Details:* {details}\n"
-        )
-        if target:
-            alert_body += f"🎯 *Target/Origin:* `{target}`\n"
-        alert_body += (
+            f"⚠️ *Severity:* `{sev}`\n"
+            f"🎯 *Threat:* *{clean_threat}*\n"
+            f"🎯 *Target:* `{target_clean}`\n"
+            f"⚡ *Status:* {action_desc}\n"
+            f"📝 *Details:* {details_clean}\n"
             f"🕒 *Timestamp:* {now_str}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⚡ *Autonomous Sentinel:* Intercepted & Secured\n"
-            f"_Reply 'status' for telemetry or 'eject' to quarantine._"
+            f"🔒 *Autonomous Sentinel:* Intercepted & Secured"
         )
 
         # 1. Record in SQLite message database
         try:
             self.record_message("OUTBOUND", "PHANTOM Sentinel", alert_body, {
                 "threat_type": threat_type,
-                "severity": severity,
-                "target": target
+                "severity": sev,
+                "target": target_clean
             })
         except Exception as e:
             logger.debug(f"Error recording message in DB: {e}")
 
-        # 2. Direct mobile lock-screen push notification to ntfy.sh (instant, zero-dependency)
+        # 2. Direct mobile lock-screen push notification to ntfy.sh (instant, zero-dependency, rich UI)
         try:
             import urllib.request
             topic = self.config.get("ntfy_topic", "phantom_alerts")
-            url = f"https://ntfy.sh/{topic}"
+            icon_url = self.config.get(
+                "ntfy_icon",
+                "https://raw.githubusercontent.com/yashuhb18/PHANTOOM/main/frontend/public/phantom-icon-yellow.png"
+            )
+            console_url = self.config.get("console_url", "http://localhost:3000")
+
+            ntfy_payload = {
+                "topic": topic,
+                "title": ntfy_title,
+                "message": ntfy_body,
+                "priority": ntfy_priority,
+                "tags": ntfy_tags,
+                "icon": icon_url,
+                "click": f"{console_url}/dashboard",
+                "actions": [
+                    {
+                        "action": "view",
+                        "label": "🖥️ Open SOC Console",
+                        "url": f"{console_url}/dashboard"
+                    },
+                    {
+                        "action": "view",
+                        "label": "📋 Incident Report",
+                        "url": f"{console_url}/reports"
+                    }
+                ],
+                "markdown": True
+            }
+
             req = urllib.request.Request(
-                url,
-                data=alert_body.encode("utf-8"),
+                "https://ntfy.sh",
+                data=json.dumps(ntfy_payload).encode("utf-8"),
                 headers={
-                    "Title": f"PHANTOM SOC ALERT: {threat_type.replace('_', ' ')}",
-                    "Priority": "urgent" if severity == "CRITICAL" else "high",
-                    "Tags": "rotating_light,shield,warning"
+                    "Content-Type": "application/json; charset=utf-8",
+                    "User-Agent": "PHANTOM-Defense-Engine/2.0"
                 }
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
                 if resp.status == 200:
-                    logger.info(f"📱 Mobile lock-screen push delivered: ntfy.sh/{topic} (Status: {resp.status})")
+                    logger.info(f"📱 Mobile lock-screen push delivered: ntfy.sh/{topic} with PHANTOM logo (Status: {resp.status})")
         except Exception as e:
             logger.error(f"Mobile push notification delivery error: {e}")
 

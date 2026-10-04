@@ -915,45 +915,6 @@ export function NetworkMonitorPage() {
                 </button>
               </div>
             </div>
-
-            {/* Attack Injections */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-white/[0.04]">
-              <div className="flex items-center gap-2 text-xs font-mono text-neutral-400">
-                <Zap className="w-3.5 h-3.5 text-[#FDE047]" />
-                <span className="text-white font-bold uppercase tracking-wider text-[11px]">Inject Packet Signature:</span>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={() => handleSimulateAttack('REVERSE_SHELL')}
-                  disabled={simulatingAttack !== null}
-                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer"
-                >
-                  ⚡ Reverse Shell (Port 4444)
-                </button>
-                <button
-                  onClick={() => handleSimulateAttack('PORT_SCAN')}
-                  disabled={simulatingAttack !== null}
-                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer"
-                >
-                  ⚡ Nmap SYN Scan Probe
-                </button>
-                <button
-                  onClick={() => handleSimulateAttack('DNS_TUNNEL')}
-                  disabled={simulatingAttack !== null}
-                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer"
-                >
-                  ⚡ DNS Exfiltration
-                </button>
-                <button
-                  onClick={() => handleSimulateAttack('CLEARTEXT_CREDS')}
-                  disabled={simulatingAttack !== null}
-                  className="px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FDE047]/10 text-white hover:text-[#FDE047] border border-white/[0.1] text-xs font-mono font-bold transition-all cursor-pointer"
-                >
-                  ⚡ Cleartext Creds Leak
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* Pane 1: Packet Stream with Auto-Scroll Pause Control */}

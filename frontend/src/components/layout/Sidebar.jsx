@@ -16,7 +16,6 @@ import {
   Fingerprint,
   Terminal,
   Sparkles,
-  MessageSquare,
   Wifi
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -26,7 +25,6 @@ export function Sidebar({ currentTab, setTab, onOpenCopilot }) {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'whatsapp', label: 'WhatsApp SOC Bot', icon: MessageSquare, badge: 'WHATSAPP' },
     { id: 'network', label: 'Network Monitor', icon: Wifi, badge: '1.0s' },
     { id: 'siem', label: 'SIEM Hunt Board', icon: Terminal, badge: 'SPLUNK' },
     { id: 'ports', label: 'Hardware & Ports', icon: Usb, badge: 'PORTS' },
@@ -42,24 +40,25 @@ export function Sidebar({ currentTab, setTab, onOpenCopilot }) {
   ];
 
   return (
-    <aside className="w-64 bg-[#0A0A0A] border-r border-white/[0.08] flex flex-col justify-between shrink-0 h-screen sticky top-0 select-none">
-      <div>
-        {/* Brand */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-white/[0.08]">
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/phantom-logo-white.png"
-              alt="PHANTOM"
-              className="h-6 w-auto object-contain select-none"
-            />
-          </div>
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#FDE047] text-black">
-            v1.0
-          </span>
+    <aside className="w-64 bg-[#0A0A0A] border-r border-white/[0.08] flex flex-col shrink-0 h-screen sticky top-0 select-none overflow-hidden">
+      {/* Brand (Fixed Top) */}
+      <div className="h-16 shrink-0 flex items-center justify-between px-6 border-b border-white/[0.08]">
+        <div className="flex items-center gap-2.5">
+          <img
+            src="/phantom-logo-white.png"
+            alt="PHANTOM"
+            className="h-6 w-auto object-contain select-none"
+          />
         </div>
+        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#FDE047] text-black">
+          v1.0
+        </span>
+      </div>
 
+      {/* Scrollable Navigation Container */}
+      <div className="flex-1 overflow-y-auto min-h-0 overscroll-contain py-2 space-y-3">
         {/* Product Website Quick Jump */}
-        <div className="p-3 space-y-2">
+        <div className="px-3 space-y-2">
           <button
             onClick={() => {
               logout();
@@ -85,9 +84,8 @@ export function Sidebar({ currentTab, setTab, onOpenCopilot }) {
           </button>
         </div>
 
-
-        {/* Navigation */}
-        <nav className="px-3 py-1 space-y-1">
+        {/* Navigation Items */}
+        <nav className="px-3 py-1 space-y-1 pb-4">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = currentTab === item.id;
@@ -118,8 +116,8 @@ export function Sidebar({ currentTab, setTab, onOpenCopilot }) {
         </nav>
       </div>
 
-      {/* Footer Profile */}
-      <div className="p-4 border-t border-white/[0.08]">
+      {/* Footer Profile (Fixed Bottom) */}
+      <div className="p-4 shrink-0 border-t border-white/[0.08] bg-[#0A0A0A]">
         <div className="flex items-center justify-between p-2.5 rounded-2xl bg-[#141414] border border-white/[0.06]">
           <div className="flex items-center gap-2.5 overflow-hidden">
             <div className="w-7 h-7 rounded-full bg-[#FDE047] text-black flex items-center justify-center font-black text-xs shrink-0">

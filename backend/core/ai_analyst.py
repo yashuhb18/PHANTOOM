@@ -64,10 +64,10 @@ class AIAnalyst:
         else:
             return f"Tactical Telemetry Dispatch: [{source}] {etype} logged into forensic timeline."
 
-    def generate_incident_report(self, session_id: str, force_regenerate: bool = False) -> Dict[str, Any]:
+    def generate_incident_report(self, session_id: str, force_regenerate: bool = False, use_ai: bool = False) -> Dict[str, Any]:
         """
-        Generates an incident report. Uses GLM-4 when available for deep cyber forensics,
-        with automated fallback to the deterministic forensic template.
+        Generates an incident report. Instant deterministic report by default (<10ms),
+        with optional local AI (Qwen/GLM) synthesis when use_ai is requested.
         """
         if not force_regenerate and session_id in self._report_cache:
             return self._report_cache[session_id]
@@ -76,36 +76,94 @@ class AIAnalyst:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,))
         session_row = cursor.fetchone()
+
+        events = []
+        alerts = []
+        fp_row = None
+        file_scans = []
+
         if not session_row:
             conn.close()
-            return {"error": "Session not found"}
-
-        session = dict(session_row)
-        cursor.execute("SELECT * FROM events WHERE session_id = ? ORDER BY timestamp ASC", (session_id,))
-        events = [dict(r) for r in cursor.fetchall()]
-        cursor.execute("SELECT * FROM alerts WHERE session_id = ? ORDER BY created_at ASC", (session_id,))
-        alerts = [dict(r) for r in cursor.fetchall()]
-        cursor.execute("SELECT * FROM fingerprints WHERE session_id = ?", (session_id,))
-        fp_row = cursor.fetchone()
-
-        # Also get any quarantined/scanned files for this session
-        file_scans = []
-        try:
-            cursor.execute("SELECT file_name, file_type, threat_score, action_taken, threat_indicators FROM file_scans WHERE session_id = ?", (session_id,))
-            file_scans = [dict(r) for r in cursor.fetchall()]
-        except Exception:
-            pass
-
-        conn.close()
+            if session_id.startswith("sess_demo_stage1") or "ducky" in session_id:
+                session = {
+                    "session_id": "sess_demo_stage1_ducky",
+                    "device_name": "USB RubberDucky Keystroke Injector",
+                    "vendor_id": "0483",
+                    "product_id": "5740",
+                    "serial_number": "DUCKY-8849-REV2",
+                    "risk_score": 98,
+                    "status": "CONTAINED",
+                    "inserted_at": "2026-10-04T01:14:02.000Z",
+                    "mount_point": "E:\\"
+                }
+                alerts = [
+                    {"alert_type": "KEYSTROKE_INJECTION", "severity": "CRITICAL", "title": "Sub-millisecond Keystroke Injection Burst (>800 CPS)", "mitre_technique": "T1056.001"},
+                    {"alert_type": "PROCESS_RUNAWAY", "severity": "HIGH", "title": "Runaway Processor Thread (powershell.exe -Enc)", "mitre_technique": "T1059.001"},
+                    {"alert_type": "CANARY_BREACH", "severity": "CRITICAL", "title": "Unauthorized Decoy Tripwire Read (.aws/credentials.canary)", "mitre_technique": "T1083"}
+                ]
+                events = [
+                    {"timestamp": "2026-10-04T01:14:02.120Z", "event_type": "USB_INSERTED", "source": "RAW-USB", "risk_score_delta": 10, "severity": "INFO"},
+                    {"timestamp": "2026-10-04T01:14:02.240Z", "event_type": "KEYSTROKE_INJECTION_DETECTED", "source": "KBD-HOOK", "risk_score_delta": 40, "severity": "CRITICAL"},
+                    {"timestamp": "2026-10-04T01:14:02.480Z", "event_type": "SUSPICIOUS_PROCESS_SPAWNED", "source": "PROC-MON", "risk_score_delta": 25, "severity": "HIGH"},
+                    {"timestamp": "2026-10-04T01:14:03.020Z", "event_type": "CANARY_TRAP_TRIPPED", "source": "CANARY-WATCHDOG", "risk_score_delta": 23, "severity": "CRITICAL"},
+                    {"timestamp": "2026-10-04T01:14:03.180Z", "event_type": "CONTAINMENT_TRIGGERED", "source": "ENFORCER", "risk_score_delta": 0, "severity": "KILL"}
+                ]
+                fp_row = {
+                    "cluster_family": "APT-RUBBER-DUCKY-INJECTOR",
+                    "dna_hash": "#e93b12",
+                    "tokens_json": '["HID_KEYSTROKE_BURST", "POWERSHELL_HIDDEN", "AWS_CANARY_TRIP", "RAPID_FIRE_CADENCE"]'
+                }
+            elif session_id.startswith("sess_demo_stage2") or "bunny" in session_id:
+                session = {
+                    "session_id": "sess_demo_stage2_bunny",
+                    "device_name": "BashBunny Multi-Payload Peripheral",
+                    "vendor_id": "05ac",
+                    "product_id": "021b",
+                    "serial_number": "BUNNY-9912-ETH",
+                    "risk_score": 92,
+                    "status": "CONTAINED",
+                    "inserted_at": "2026-10-04T01:15:30.000Z",
+                    "mount_point": "E:\\"
+                }
+                alerts = [
+                    {"alert_type": "ETHERNET_IMPERSONATION", "severity": "HIGH", "title": "Rogue USB Ethernet Adapter Spoofing Gateway", "mitre_technique": "T1200"},
+                    {"alert_type": "PROCESS_RUNAWAY", "severity": "CRITICAL", "title": "Runaway Multi-Core CPU Burn (>75%)", "mitre_technique": "T1496"}
+                ]
+                events = [
+                    {"timestamp": "2026-10-04T01:15:30.100Z", "event_type": "USB_INSERTED", "source": "RAW-USB", "risk_score_delta": 10, "severity": "INFO"},
+                    {"timestamp": "2026-10-04T01:15:30.450Z", "event_type": "ETHERNET_SPOOF_DETECTED", "source": "NET-PROBE", "risk_score_delta": 45, "severity": "HIGH"},
+                    {"timestamp": "2026-10-04T01:15:30.980Z", "event_type": "CONTAINMENT_TRIGGERED", "source": "ENFORCER", "risk_score_delta": 0, "severity": "KILL"}
+                ]
+                fp_row = {
+                    "cluster_family": "APT-BASH-BUNNY-COMPOSITE",
+                    "dna_hash": "#a812bf",
+                    "tokens_json": '["USB_NET_SPOOF", "MULTICORE_CPU_BURN", "AUTO_SOCKET_SEVER"]'
+                }
+            else:
+                return {"error": "Session not found"}
+        else:
+            session = dict(session_row)
+            cursor.execute("SELECT * FROM events WHERE session_id = ? ORDER BY timestamp ASC", (session_id,))
+            events = [dict(r) for r in cursor.fetchall()]
+            cursor.execute("SELECT * FROM alerts WHERE session_id = ? ORDER BY created_at ASC", (session_id,))
+            alerts = [dict(r) for r in cursor.fetchall()]
+            cursor.execute("SELECT * FROM fingerprints WHERE session_id = ?", (session_id,))
+            fp_row = cursor.fetchone()
+            try:
+                cursor.execute("SELECT file_name, file_type, threat_score, action_taken, threat_indicators FROM file_scans WHERE session_id = ?", (session_id,))
+                file_scans = [dict(r) for r in cursor.fetchall()]
+            except Exception:
+                pass
+            conn.close()
 
         fp = dict(fp_row) if fp_row else {"cluster_family": "UNCLASSIFIED", "dna_hash": "N/A", "tokens_json": "[]"}
         tokens = json.loads(fp.get("tokens_json", "[]"))
 
         report_md = ""
-        engine_used = "DETERMINISTIC_FALLBACK"
+        engine_used = "PHANTOM Deterministic Threat Engine"
 
-        # Attempt to generate with GLM-4
-        if glm_client.enabled:
+        # Attempt to generate with GLM-4 only when explicitly requested
+        if use_ai and glm_client.enabled:
             try:
                 session_summary = {
                     "session_id": session_id,
@@ -209,7 +267,8 @@ PHANTOM's Autonomous Response Engine intervened, executing socket severance, qua
 |---|---|---|---|---|
 """
             for e in events:
-                report_md += f"| {e['timestamp']} | {e['source']} | {e['event_type']} | {e['severity']} | +{e['risk_score_delta']} |\n"
+                sev = e.get('severity') or ('CRITICAL' if (e.get('risk_score_delta', 0) >= 30) else 'HIGH' if (e.get('risk_score_delta', 0) >= 15) else 'INFO')
+                report_md += f"| {e.get('timestamp', '')} | {e.get('source', 'KERNEL')} | {e.get('event_type', '')} | {sev} | +{e.get('risk_score_delta', 0)} |\n"
 
             report_md += """
 ---

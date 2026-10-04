@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, ShieldCheck, Zap, Lock } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Zap, Lock, Smartphone, ExternalLink } from 'lucide-react';
 import { AlertBadge } from '../components/common/AlertBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { formatISTFull } from '../utils/time';
@@ -47,10 +47,59 @@ export function AlertsActions() {
     }
   };
 
+  const [testPushLoading, setTestPushLoading] = useState(false);
+
+  const sendTestPush = async () => {
+    setTestPushLoading(true);
+    try {
+      const res = await fetch(`http://${window.location.hostname}:8001/api/whatsapp/send_test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          threat_type: 'KEYSTROKE_INJECTION',
+          severity: 'CRITICAL',
+          details: 'High-frequency keystroke burst injected into powershell.exe host.',
+          target: 'powershell.exe (PID: 4921)'
+        })
+      });
+      if (res.ok) {
+        setActionStatus('📱 Push alert with PHANTOM logo delivered to ntfy.sh/phantom_alerts');
+        setTimeout(() => setActionStatus(null), 5000);
+      }
+    } catch (e) {
+      console.error('Failed to send test push:', e);
+    } finally {
+      setTestPushLoading(false);
+    }
+  };
+
   if (loading) return <LoadingState message="Loading security alerts and incident actions..." />;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Mobile Lock-screen Channel Banner */}
+      <div className="bg-[#141414] border border-white/[0.06] rounded-[24px] px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-neutral-400 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-[#FDE047]/10 border border-[#FDE047]/20 flex items-center justify-center text-[#FDE047] shrink-0">
+            <Smartphone className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-white font-semibold">Live Push Channel: </span>
+            <span className="font-mono text-[#FDE047]">ntfy.sh/phantom_alerts</span>
+            <span className="text-neutral-500 ml-2 hidden sm:inline">• Real-time lock-screen alerts with PHANTOM logo & action buttons</span>
+          </div>
+        </div>
+        <a
+          href="https://ntfy.sh/phantom_alerts"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-mono text-[#FDE047] hover:underline shrink-0"
+        >
+          <span>Open Web Feed</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
+
       {/* Containment Actions Card */}
       <div className="bg-[#141414] border border-white/[0.08] rounded-[28px] p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-2xl">
         <div className="flex items-center gap-4">
@@ -65,7 +114,16 @@ export function AlertsActions() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={sendTestPush}
+            disabled={testPushLoading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white text-xs font-bold border border-white/[0.1] shadow-lg transition-all pill-button cursor-pointer disabled:opacity-50"
+            title="Dispatch a live test notification with PHANTOM logo to ntfy.sh"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-[#FDE047]" />
+            <span>{testPushLoading ? 'Dispatching...' : 'Test Mobile Push'}</span>
+          </button>
           <button
             onClick={() => triggerAction('SOCKET_SEVER')}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-lg shadow-red-500/20 transition-all pill-button cursor-pointer"

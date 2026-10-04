@@ -29,14 +29,14 @@ export function Header({ currentTab, setTab, onOpenCopilot }) {
   };
 
   return (
-    <header className="h-16 bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-white/[0.08] px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-20">
-      <div className="flex items-center gap-3">
-        <h1 className="text-sm font-bold text-white tracking-tight">
+    <header className="h-16 bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-white/[0.08] px-4 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-20 gap-4">
+      <div className="flex items-center gap-3 shrink-0">
+        <h1 className="text-sm font-bold text-white tracking-tight truncate">
           {titleMap[currentTab] || 'PHANTOM Security'}
         </h1>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1 shrink-0">
         {/* Live Indian Standard Time (IST) Clock */}
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-[#141414] text-[11px] font-mono select-none text-neutral-300">
           <Clock className="w-3.5 h-3.5 text-[#FDE047]" />

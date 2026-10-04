@@ -93,9 +93,11 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
     { t: "00:00.12", lvl: "INFO", src: "RAW-USB", msg: "USB Bus Enumeration: VID_0483&PID_5740 (Class 03: HID Keyboard)" },
     { t: "00:00.24", lvl: "WARN", src: "KBD-HOOK", msg: "Keystroke burst: 84 WPM -> 760 WPM (Jitter: 0.4ms). Synthetic injection flagged." },
     { t: "00:00.48", lvl: "WARN", src: "PROC-MON", msg: "Process spawned: powershell.exe -NoP -NonI -W Hidden -Enc SUVY..." },
+    { t: "00:00.78", lvl: "WARN", src: "CPU-WATCH", msg: "Processor anomaly detected: CPU burn > 70% on runaway thread." },
     { t: "00:01.02", lvl: "CRIT", src: "CANARY", msg: "DECEPTION TRIPWIRE BREACH: Unauthorized access to .aws/credentials.canary" },
-    { t: "00:01.18", lvl: "KILL", src: "CONTAIN", msg: "AUTONOMOUS ISOLATION TRIGGERED: Outbound TCP socket severed. Host micro-isolated." },
-    { t: "00:01.32", lvl: "INFO", src: "DNA-ENG", msg: "Attack DNA synthesized: #e93b12. Match: 82.4% with known Actor 'APT-COVERT-PERIPHERAL'" }
+    { t: "00:01.18", lvl: "KILL", src: "CONTAIN", msg: "AUTONOMOUS KILL: Host sockets severed, runaway PID terminated (<1.0s), USB port ejected." },
+    { t: "00:01.25", lvl: "INFO", src: "NTFY-PUSH", msg: "Mobile lock-screen alert dispatched via ntfy.sh." },
+    { t: "00:01.40", lvl: "INFO", src: "DNA-ENG", msg: "Attack DNA synthesized: #e93b12. Match: 82.4% with known Actor 'APT-COVERT-PERIPHERAL'" }
   ];
 
   useEffect(() => {
@@ -137,8 +139,8 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             isScrolled ? 'text-neutral-300' : 'text-black/80'
           }`}>
             <a href="#features" className={`transition-colors ${isScrolled ? 'hover:text-[#FDE047]' : 'hover:text-black'}`}>Features</a>
-            <a href="#architecture" className={`transition-colors ${isScrolled ? 'hover:text-[#FDE047]' : 'hover:text-black'}`}>Architecture</a>
-            <a href="#attack-dna" className={`transition-colors ${isScrolled ? 'hover:text-[#FDE047]' : 'hover:text-black'}`}>Attack DNA</a>
+            <a href="#edr-blindspot" className={`transition-colors ${isScrolled ? 'hover:text-[#FDE047]' : 'hover:text-black'}`}>Why EDR Fails</a>
+            <a href="#demo" className={`transition-colors ${isScrolled ? 'hover:text-[#FDE047]' : 'hover:text-black'}`}>Live Telemetry</a>
             <a href="#benchmarks" className={`transition-colors ${isScrolled ? 'hover:text-[#FDE047]' : 'hover:text-black'}`}>Benchmarks</a>
           </nav>
 
@@ -211,10 +213,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
             {/* Sub-header */}
             <p className="text-sm sm:text-base md:text-lg text-black/85 font-medium leading-relaxed max-w-xl mb-10 anim-desc">
-              PHANTOM automatically detects and neutralizes USB-based threats the
-              moment a device is plugged in — no manual intervention needed.
-              From rogue keyboards to data-stealing implants, every attack is
-              identified, isolated, and reported in under a second.
+              Most physical attacks start through a simple USB port. PHANTOM closes that door completely — detecting dangerous hardware and shutting down rogue processes the millisecond they plug in. Your machine stays defended at the physical layer without ever interrupting your day-to-day work.
             </p>
 
             {/* Pill CTA Buttons */}
@@ -288,18 +287,18 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             {/* Continuous Horizontal Ticker */}
             <div className="animate-marquee-horizontal flex items-center select-none">
               {[
-                "KERNEL-HOOK (WH_KEYBOARD_LL)",
-                "RAW-USB (SETUPAPI)",
-                "NETWORKX CAUSAL-DAG",
-                "JACCARD-DNA MATRIX",
-                "CANARY KERNEL-WATCHDOG",
-                "AUTONOMOUS MICRO-ISOLATION",
-                "KERNEL-HOOK (WH_KEYBOARD_LL)",
-                "RAW-USB (SETUPAPI)",
-                "NETWORKX CAUSAL-DAG",
-                "JACCARD-DNA MATRIX",
-                "CANARY KERNEL-WATCHDOG",
-                "AUTONOMOUS MICRO-ISOLATION"
+                "HARDWARE ZERO-TRUST",
+                "PROCESSOR ANOMALY WATCHER",
+                "SUB-382MS CONTAINMENT",
+                "CANARY DECEPTION GRID",
+                "MOBILE LOCK-SCREEN ALERTS",
+                "1-CLICK FORENSIC AUDIT",
+                "HARDWARE ZERO-TRUST",
+                "PROCESSOR ANOMALY WATCHER",
+                "SUB-382MS CONTAINMENT",
+                "CANARY DECEPTION GRID",
+                "MOBILE LOCK-SCREEN ALERTS",
+                "1-CLICK FORENSIC AUDIT"
               ].map((item, idx) => (
                 <div
                   key={idx}
@@ -313,15 +312,15 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
           </div>
         </div>
 
-        {/* Section Header (Matching Screenshot 2) */}
+        {/* Section Header */}
         <div className="max-w-7xl mx-auto mb-16">
           <Reveal>
             <span className="text-[#FDE047] font-bold text-xs md:text-sm tracking-widest uppercase mb-4 block">
-              FEATURES
+              AUTONOMOUS CAPABILITIES
             </span>
             <h2 className="text-5xl sm:text-6xl md:text-7xl font-bold text-white tracking-tight leading-[1.05] max-w-3xl">
-              Everything you need.<br />
-              Nothing you don't.
+              Complete hardware defense.<br />
+              Zero human delay.
             </h2>
           </Reveal>
         </div>
@@ -330,7 +329,7 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
         {/* Features Card Grid */}
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
           
-          {/* Feature 1 */}
+          {/* Feature 1: Hardware Zero-Trust */}
           <Reveal delay={100}>
             <div data-narrator="feat-rogue" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
@@ -338,10 +337,10 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
                   <Activity className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-black mb-2.5 tracking-tight transition-colors">
-                  Instant Rogue Device Detection
+                  Hardware Zero-Trust & BadUSB Shield
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-400 group-hover:text-black/85 leading-relaxed transition-colors">
-                  Catches fake keyboards, RubberDuckies, and rogue USB injectors the millisecond they plug in — stopping hardware attacks before any malicious code can execute.
+                  Every connected USB device is treated as untrusted until verified. Detects keystroke injection cadence and fake keyboard microcontrollers in milliseconds, neutralizing BadUSB attacks before malicious payloads can run.
                 </p>
               </div>
               <div className="mt-6 flex justify-end">
@@ -352,18 +351,18 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             </div>
           </Reveal>
 
-          {/* Feature 2 */}
+          {/* Feature 2: Real-Time Processor Watcher */}
           <Reveal delay={200}>
-            <div data-narrator="feat-map" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+            <div data-narrator="feat-cpu" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
-                  <Globe className="w-5 h-5" />
+                  <Cpu className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-black mb-2.5 tracking-tight transition-colors">
-                  Live Visual Attack Map
+                  Real-Time Processor Watcher
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-400 group-hover:text-black/85 leading-relaxed transition-colors">
-                  Traces the full journey of a threat from physical USB insertion to network connections and file access, giving you an interactive, real-time visual map.
+                  Continuously inspects active threads and CPU utilization. If a rogue executable or stealth script attempts processor exhaustion or background cryptomining, PHANTOM autonomously terminates the process in under 1 second.
                 </p>
               </div>
               <div className="mt-6 flex justify-end">
@@ -374,40 +373,18 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             </div>
           </Reveal>
 
-          {/* Feature 3 */}
+          {/* Feature 3: Smart Canary Deception Grid */}
           <Reveal delay={300}>
-            <div data-narrator="feat-dna" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
-              <div>
-                <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
-                  <Dna className="w-5 h-5" />
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-black mb-2.5 tracking-tight transition-colors">
-                  Attacker DNA Fingerprinting
-                </h3>
-                <p className="text-xs sm:text-sm text-neutral-400 group-hover:text-black/85 leading-relaxed transition-colors">
-                  Recognizes repeat threat actors by their unique behavioral signature with 82%+ accuracy, spotting them even if they plug in a completely different flash drive.
-                </p>
-              </div>
-              <div className="mt-6 flex justify-end">
-                <div className="w-8 h-8 rounded-full bg-[#FDE047]/10 text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center transition-all">
-                  <ArrowUpRight className="w-4 h-4" />
-                </div>
-              </div>
-            </div>
-          </Reveal>
-
-          {/* Feature 4 */}
-          <Reveal delay={400}>
             <div data-narrator="feat-canary" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
                   <Flame className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-black mb-2.5 tracking-tight transition-colors">
-                  Smart Decoy Traps
+                  Smart Canary Deception Grid
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-400 group-hover:text-black/85 leading-relaxed transition-colors">
-                  Deploys invisible honeypot files like fake passwords and server keys. The second an intruder opens bait, alarms sound with 100% certainty and zero false alarms.
+                  Deploys realistic decoy honeypot files and credentials across your file system. The moment an intruder or ransomware touches a decoy trap, alerts trigger with 100% mathematical certainty and zero false alarms.
                 </p>
               </div>
               <div className="mt-6 flex justify-end">
@@ -418,18 +395,18 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             </div>
           </Reveal>
 
-          {/* Feature 5 */}
-          <Reveal delay={500}>
-            <div data-narrator="feat-isolation" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+          {/* Feature 4: Digital Dust & Attacker DNA */}
+          <Reveal delay={400}>
+            <div data-narrator="feat-dna" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
-                  <Zap className="w-5 h-5" />
+                  <Dna className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-black mb-2.5 tracking-tight transition-colors">
-                  Sub-Second Auto-Isolation
+                  Digital Dust & Attacker DNA
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-400 group-hover:text-black/85 leading-relaxed transition-colors">
-                  Instantly severs rogue connections and locks down compromised USB ports in under 382 milliseconds — neutralizing the danger without disrupting your normal work.
+                  Recovers forensic remnant artifacts left behind by unauthorized drives and calculates behavioral fingerprints with 82.4%+ Jaccard similarity—identifying repeat attackers even if they swap physical flash drives.
                 </p>
               </div>
               <div className="mt-6 flex justify-end">
@@ -440,7 +417,29 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
             </div>
           </Reveal>
 
-          {/* Feature 6 */}
+          {/* Feature 5: Mobile Lock-Screen & WhatsApp Alerts */}
+          <Reveal delay={500}>
+            <div data-narrator="feat-alerts" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
+              <div>
+                <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-white/[0.08] text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center mb-4 transition-colors shadow-sm">
+                  <Radio className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-black mb-2.5 tracking-tight transition-colors">
+                  Mobile Lock-Screen Alerts
+                </h3>
+                <p className="text-xs sm:text-sm text-neutral-400 group-hover:text-black/85 leading-relaxed transition-colors">
+                  Sends critical security alerts directly to your phone's lock-screen via instant ntfy push notifications. Receive immediate containment alerts and take action even when away from your desk.
+                </p>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <div className="w-8 h-8 rounded-full bg-[#FDE047]/10 text-[#FDE047] group-hover:bg-black group-hover:text-[#FDE047] flex items-center justify-center transition-all">
+                  <ArrowUpRight className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
+          </Reveal>
+
+          {/* Feature 6: 1-Click Executive PDF Reports */}
           <Reveal delay={600}>
             <div data-narrator="feat-reports" className="bg-[#141414] hover:bg-[#FDE047] border border-white/[0.06] hover:border-[#FDE047] p-6 sm:p-7 rounded-[24px] relative group transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(253,224,71,0.22)] h-full flex flex-col justify-between cursor-pointer">
               <div>
@@ -448,10 +447,10 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
                   <FileText className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-black mb-2.5 tracking-tight transition-colors">
-                  Executive Audit Reports
+                  1-Click Executive Audit Reports
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-400 group-hover:text-black/85 leading-relaxed transition-colors">
-                  Automatically compiles boardroom-ready incident summaries with second-by-second timelines and compliance mappings, downloadable with a single click.
+                  Generates publication-ready PDF incident audits with complete MITRE ATT&CK kill-chain mapping, second-by-second forensic timelines, and autonomous containment metrics ready for CISO and board review in a single click.
                 </p>
               </div>
               <div className="mt-6 flex justify-end">
@@ -474,13 +473,16 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
         <div className="max-w-7xl mx-auto">
           
           <Reveal>
-            <div className="text-center max-w-2xl mx-auto mb-16">
+            <div className="text-center max-w-3xl mx-auto mb-16">
               <span className="text-[#FDE047] font-bold text-xs tracking-widest uppercase mb-2 block">
                 THE PHYSICAL BLIND SPOT
               </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
-                Why Traditional EDR Fails Against Rogue Hardware
+              <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-4">
+                Why Traditional EDR Fails Against Hardware Attacks
               </h2>
+              <p className="text-sm md:text-base text-neutral-400 max-w-2xl mx-auto leading-relaxed">
+                Conventional antivirus and enterprise EDR solutions look exclusively at known file signatures and cloud databases. They are completely blind to physical USB devices, keystroke injectors, and runaway processor payloads.
+              </p>
             </div>
           </Reveal>
 
@@ -495,22 +497,26 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white">Conventional EDR / XDR</h3>
-                    <p className="text-xs text-neutral-400">CrowdStrike, SentinelOne, Defender ATP</p>
+                    <p className="text-xs text-neutral-400">CrowdStrike, SentinelOne, Microsoft Defender</p>
                   </div>
                 </div>
 
                 <div className="space-y-4 text-sm text-neutral-300">
                   <div className="flex items-start gap-3 p-3 bg-neutral-900/60 rounded-xl border border-white/[0.04]">
-                    <span className="text-red-400 font-bold">✕</span>
-                    <span><strong>Blind to Keystroke Speed:</strong> Assumes all keyboard input is an authorized human typing at the keyboard.</span>
+                    <span className="text-red-400 font-bold shrink-0">✕</span>
+                    <span><strong>Blind to Keystroke Injection:</strong> Assumes any plugged-in USB keyboard is an authorized human typing. When a BadUSB injects 1,000 commands per second into PowerShell, antivirus considers it normal user input.</span>
                   </div>
                   <div className="flex items-start gap-3 p-3 bg-neutral-900/60 rounded-xl border border-white/[0.04]">
-                    <span className="text-red-400 font-bold">✕</span>
-                    <span><strong>No Cross-Hardware DNA:</strong> Cannot identify the same attacker when they swap physical USB sticks.</span>
+                    <span className="text-red-400 font-bold shrink-0">✕</span>
+                    <span><strong>Signature & Hash Dependency:</strong> Only flags files matching known malware databases. Zero-day scripts, legitimate-looking utilities, or in-memory attacks completely bypass scanning with clean 0% threat scores.</span>
                   </div>
                   <div className="flex items-start gap-3 p-3 bg-neutral-900/60 rounded-xl border border-white/[0.04]">
-                    <span className="text-red-400 font-bold">✕</span>
-                    <span><strong>Passive Post-Breach Alerting:</strong> Triggers alerts minutes or hours after data exfiltration has occurred.</span>
+                    <span className="text-red-400 font-bold shrink-0">✕</span>
+                    <span><strong>Ignores Processor Runaway:</strong> Fails to aggressively terminate CPU-hijacking processes in real time, allowing rogue scripts to consume system cores or mine crypto indefinitely.</span>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 bg-neutral-900/60 rounded-xl border border-white/[0.04]">
+                    <span className="text-red-400 font-bold shrink-0">✕</span>
+                    <span><strong>Delayed Post-Breach Alerts:</strong> Sends alerts to remote analyst queues minutes or hours after data has been exfiltrated, with zero ability to physically cut USB power or eject the device.</span>
                   </div>
                 </div>
               </div>
@@ -539,15 +545,19 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
                 <div className="space-y-4 text-sm text-neutral-200">
                   <div className="flex items-start gap-3 p-3 bg-neutral-900/80 rounded-xl border border-white/[0.06]">
                     <CheckCircle2 className="w-5 h-5 text-[#FDE047] shrink-0" />
-                    <span><strong>Sub-Millisecond Jitter Detection:</strong> Spots non-human typing cadence in &lt;100 characters.</span>
+                    <span><strong>Hardware Zero-Trust & Jitter Detection:</strong> Analyzes microsecond typing cadences and hardware descriptors in &lt;100 characters to instantly block automated keystroke injection.</span>
                   </div>
                   <div className="flex items-start gap-3 p-3 bg-neutral-900/80 rounded-xl border border-white/[0.06]">
                     <CheckCircle2 className="w-5 h-5 text-[#FDE047] shrink-0" />
-                    <span><strong>Cross-Device Attack DNA:</strong> Synthesizes behavioral fingerprints to track persistent actors.</span>
+                    <span><strong>Real-Time Processor Anomaly Watcher:</strong> Autonomously identifies and terminates runaway executables and high-CPU cryptominers in &lt;1.0 second without waiting for signatures.</span>
                   </div>
                   <div className="flex items-start gap-3 p-3 bg-neutral-900/80 rounded-xl border border-white/[0.06]">
                     <CheckCircle2 className="w-5 h-5 text-[#FDE047] shrink-0" />
-                    <span><strong>Sub-382ms Autonomous Kill:</strong> Automatically severs sockets without waiting for human SOC analysts.</span>
+                    <span><strong>Zero-False-Positive Canary Grid:</strong> Baits intruders with invisible decoys. The moment an unauthorized script touches a canary, containment triggers with 100% certainty.</span>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 bg-neutral-900/80 rounded-xl border border-white/[0.06]">
+                    <CheckCircle2 className="w-5 h-5 text-[#FDE047] shrink-0" />
+                    <span><strong>Sub-382ms Ejection & Instant Mobile Push:</strong> Physically disables the compromised USB port at the OS level in &lt;382ms and immediately sounds an alert on your phone's lock-screen.</span>
                   </div>
                 </div>
               </div>
@@ -696,8 +706,8 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
           </div>
 
           <div className="bg-[#141414] border border-white/[0.04] p-6 rounded-[28px] text-center">
-            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white font-mono block mb-1">100%</span>
-            <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Autonomous Execution</span>
+            <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white font-mono block mb-1">&lt;1.0s</span>
+            <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Runaway CPU Containment</span>
           </div>
 
         </div>
@@ -756,7 +766,8 @@ export function LandingPage({ onLaunchConsole, onOpenLogin, onOpenRegister }) {
 
           <div className="flex items-center gap-6 font-medium">
             <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#architecture" className="hover:text-white transition-colors">Architecture</a>
+            <a href="#edr-blindspot" className="hover:text-white transition-colors">Why EDR Fails</a>
+            <a href="#demo" className="hover:text-white transition-colors">Live Telemetry</a>
             <a href="#benchmarks" className="hover:text-white transition-colors">Benchmarks</a>
             <button onClick={onOpenLogin} className="text-[#FDE047] hover:underline font-bold">
               Get Started →
