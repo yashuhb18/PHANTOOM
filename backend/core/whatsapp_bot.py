@@ -63,6 +63,7 @@ class WhatsAppBotManager:
             "gateway_mode": "CALLMEBOT", # "CALLMEBOT", "OPENWA_REST", "MOCK"
             "callmebot_apikey": "",      # Free CallMeBot API Key
             "openwa_rest_url": "http://127.0.0.1:8085/api/sendText",
+            "ntfy_topic": "phantom_alerts",
             "auto_alert_severity": ["CRITICAL", "HIGH"],
             "bot_name": "PHANTOM SOC Sentinel"
         }
@@ -209,9 +210,25 @@ class WhatsAppBotManager:
                     resp = await client.post(openwa_url, json=payload)
                     if resp.status_code == 200:
                         logger.info(f"✅ WhatsApp alert dispatched via Open-WA REST API to {phone}")
-                        return True
             except Exception as e:
-                logger.debug(f"Open-WA REST server not active or unreachable: {e}")
+                logger.debug(f"Open-WA REST error: {e}")
+        # 3. Always dispatch direct mobile lock-screen push notification
+        try:
+            ntfy_topic = self.config.get("ntfy_topic", "phantom_alerts")
+            ntfy_url = f"https://ntfy.sh/{ntfy_topic}"
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                await client.post(
+                    ntfy_url,
+                    content=alert_body.encode("utf-8"),
+                    headers={
+                        "Title": f"PHANTOM SOC ALERT: {threat_type.replace('_', ' ')}",
+                        "Priority": "urgent" if severity == "CRITICAL" else "high",
+                        "Tags": "rotating_light,shield,warning"
+                    }
+                )
+                logger.info(f"📱 Mobile lock-screen push notification dispatched to ntfy.sh/{ntfy_topic}")
+        except Exception as e:
+            logger.debug(f"Mobile push notification error: {e}")
 
         return True
 
