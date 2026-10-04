@@ -81,28 +81,23 @@ class SessionManager:
         conn.commit()
         conn.close()
 
-        # Automated WhatsApp Alert Trigger for High/Critical Threats
+        # Automated Alert Trigger for High/Critical Threats (Mobile & WhatsApp)
         if getattr(event, "severity", "") in ("CRITICAL", "HIGH") or "CONTAINMENT" in getattr(event, "event_type", ""):
             try:
-                import asyncio
                 from backend.core.whatsapp_bot import whatsapp_bot
                 data = getattr(event, "data", {}) or {}
                 threat_title = data.get("threat_type") or data.get("anomaly") or event.event_type
                 details = data.get("command_line") or data.get("action") or f"Event from {event.source}"
                 target = data.get("process_name") or data.get("detected_usb_mount") or str(data.get("pid", ""))
-                try:
-                    loop = asyncio.get_running_loop()
-                    loop.create_task(whatsapp_bot.send_whatsapp_alert(
-                        title="Autonomous Threat Alert",
-                        threat_type=str(threat_title),
-                        severity=getattr(event, "severity", "CRITICAL"),
-                        details=str(details)[:150],
-                        target=str(target)
-                    ))
-                except RuntimeError:
-                    pass
-            except Exception:
-                pass
+                whatsapp_bot.trigger_alert(
+                    title="Autonomous Threat Alert",
+                    threat_type=str(threat_title),
+                    severity=getattr(event, "severity", "CRITICAL"),
+                    details=str(details)[:150],
+                    target=str(target)
+                )
+            except Exception as e:
+                logger.error(f"Error triggering alert in session_manager: {e}")
 
     def close_session(self, session_id: str) -> None:
         conn = get_db()

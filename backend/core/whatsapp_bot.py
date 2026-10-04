@@ -144,17 +144,38 @@ class WhatsAppBotManager:
                     "metadata": metadata or {}
                 }
             }
-            asyncio.create_task(ws_manager.broadcast_live(payload))
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(ws_manager.broadcast_live(payload))
+            except RuntimeError:
+                try:
+                    coro = ws_manager.broadcast_live(payload)
+                    from backend.agent.process_monitor import process_monitor
+                    if process_monitor._event_loop and process_monitor._event_loop.is_running():
+                        asyncio.run_coroutine_threadsafe(coro, process_monitor._event_loop)
+                    else:
+                        coro.close()
+                except Exception:
+                    pass
         except Exception as e:
             logger.error(f"Error recording WhatsApp message: {e}")
 
-    async def send_whatsapp_alert(self, title: str, threat_type: str, severity: str, details: str, target: str = "") -> bool:
+    def trigger_alert(self, title: str, threat_type: str, severity: str, details: str, target: str = ""):
         """
-        Dispatches an automated WhatsApp alert.
-        Formats the message with WhatsApp-friendly bold (*), italics (_), and monospace (```).
+        Thread-safe alert trigger. Can be safely invoked from any background thread,
+        process monitor, or callback without requiring an asyncio event loop.
         """
+        import threading
+        threading.Thread(
+            target=self._sync_alert_worker,
+            args=(title, threat_type, severity, details, target),
+            daemon=True
+        ).start()
+
+    def _sync_alert_worker(self, title: str, threat_type: str, severity: str, details: str, target: str = ""):
+        """Synchronously processes and dispatches alerts to DB, WebSockets, ntfy.sh, and gateways."""
         if not self.config.get("enabled", True):
-            return False
+            return
 
         now_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
         alert_body = (
@@ -173,63 +194,54 @@ class WhatsAppBotManager:
             f"_Reply 'status' for telemetry or 'eject' to quarantine._"
         )
 
-        # 1. Record in internal message database (always visible in in-app WhatsApp client)
-        self.record_message("OUTBOUND", "PHANTOM Sentinel", alert_body, {
-            "threat_type": threat_type,
-            "severity": severity,
-            "target": target
-        })
+        # 1. Record in SQLite message database
+        try:
+            self.record_message("OUTBOUND", "PHANTOM Sentinel", alert_body, {
+                "threat_type": threat_type,
+                "severity": severity,
+                "target": target
+            })
+        except Exception as e:
+            logger.debug(f"Error recording message in DB: {e}")
 
-        # 2. Dispatch to external gateway if configured
+        # 2. Direct mobile lock-screen push notification to ntfy.sh (instant, zero-dependency)
+        try:
+            import urllib.request
+            topic = self.config.get("ntfy_topic", "phantom_alerts")
+            url = f"https://ntfy.sh/{topic}"
+            req = urllib.request.Request(
+                url,
+                data=alert_body.encode("utf-8"),
+                headers={
+                    "Title": f"PHANTOM SOC ALERT: {threat_type.replace('_', ' ')}",
+                    "Priority": "urgent" if severity == "CRITICAL" else "high",
+                    "Tags": "rotating_light,shield,warning"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    logger.info(f"📱 Mobile lock-screen push delivered: ntfy.sh/{topic} (Status: {resp.status})")
+        except Exception as e:
+            logger.error(f"Mobile push notification delivery error: {e}")
+
+        # 3. CallMeBot Gateway if configured
         mode = self.config.get("gateway_mode", "CALLMEBOT").upper()
         phone = self.config.get("target_phone", "").strip().replace("+", "").replace(" ", "").replace("-", "")
-
         if mode == "CALLMEBOT" and phone and self.config.get("callmebot_apikey"):
             apikey = self.config.get("callmebot_apikey", "").strip()
             encoded_text = urllib.parse.quote(alert_body)
             url = f"https://api.callmebot.com/whatsapp.php?phone={phone}&text={encoded_text}&apikey={apikey}"
             try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.get(url)
-                    if resp.status_code == 200 and "Message queued" in resp.text or "ok" in resp.text.lower():
-                        logger.info(f"✅ WhatsApp alert successfully dispatched via CallMeBot to {phone}")
-                        return True
-                    else:
-                        logger.warning(f"CallMeBot response: {resp.status_code} - {resp.text[:100]}")
+                import urllib.request
+                req = urllib.request.Request(url, headers={"User-Agent": "PHANTOM-SOC/2.0"})
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    logger.info(f"✅ CallMeBot delivery status: {resp.status}")
             except Exception as e:
-                logger.error(f"Failed to dispatch CallMeBot alert: {e}")
+                logger.error(f"CallMeBot delivery error: {e}")
 
-        elif mode == "OPENWA_REST" and phone:
-            openwa_url = self.config.get("openwa_rest_url", "http://127.0.0.1:8085/api/sendText")
-            try:
-                payload = {
-                    "chatId": f"{phone}@c.us",
-                    "text": alert_body
-                }
-                async with httpx.AsyncClient(timeout=8.0) as client:
-                    resp = await client.post(openwa_url, json=payload)
-                    if resp.status_code == 200:
-                        logger.info(f"✅ WhatsApp alert dispatched via Open-WA REST API to {phone}")
-            except Exception as e:
-                logger.debug(f"Open-WA REST error: {e}")
-        # 3. Always dispatch direct mobile lock-screen push notification
-        try:
-            ntfy_topic = self.config.get("ntfy_topic", "phantom_alerts")
-            ntfy_url = f"https://ntfy.sh/{ntfy_topic}"
-            async with httpx.AsyncClient(timeout=4.0) as client:
-                await client.post(
-                    ntfy_url,
-                    content=alert_body.encode("utf-8"),
-                    headers={
-                        "Title": f"PHANTOM SOC ALERT: {threat_type.replace('_', ' ')}",
-                        "Priority": "urgent" if severity == "CRITICAL" else "high",
-                        "Tags": "rotating_light,shield,warning"
-                    }
-                )
-                logger.info(f"📱 Mobile lock-screen push notification dispatched to ntfy.sh/{ntfy_topic}")
-        except Exception as e:
-            logger.debug(f"Mobile push notification error: {e}")
-
+    async def send_whatsapp_alert(self, title: str, threat_type: str, severity: str, details: str, target: str = "") -> bool:
+        """Async wrapper for send_whatsapp_alert calling the sync worker."""
+        self._sync_alert_worker(title, threat_type, severity, details, target)
         return True
 
     async def handle_user_command(self, incoming_text: str, sender: str = "User") -> str:

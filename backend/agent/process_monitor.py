@@ -1065,7 +1065,20 @@ class ProcessMonitor:
             except Exception:
                 pass
 
-        # 5. Broadcast containment action
+        # 5. Direct mobile push notification
+        try:
+            from backend.core.whatsapp_bot import whatsapp_bot
+            whatsapp_bot.trigger_alert(
+                title=f"Autonomous Containment: {name}",
+                threat_type=threat_type,
+                severity=severity,
+                details=f"Surgically neutralized process {name} (PID: {pid}). {cmdline[:100]}",
+                target=f"{name} (PID: {pid})"
+            )
+        except Exception:
+            pass
+
+        # 6. Broadcast containment action
         containment_event = {
             "source": "RESPONSE_ENGINE",
             "event_type": "CONTAINMENT_TRIGGERED",
