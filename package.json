@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "start": "cmd /c start.bat",
+    "stop": "cmd /c kill.bat",
     "dev": "npm --prefix frontend run dev",
     "build": "tsc && vite build",
     "preview": "vite preview"
