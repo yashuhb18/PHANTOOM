@@ -358,7 +358,7 @@ class ProcessMonitor:
                         cmdline_list = []
                         cmdline = ""
 
-                    if any(srv in cmdline for srv in ("uvicorn", "backend.main", "vite", "antigravity", "cursor", "code-insiders", "ollama")):
+                    if any(srv in cmdline for srv in ("uvicorn", "backend.main", "vite", "antigravity", "cursor", "code-insiders", "code", "ollama", "node_modules", "esbuild")):
                         continue
 
                     try:
@@ -372,7 +372,7 @@ class ProcessMonitor:
                     is_in_system_dir = any(sys_path in proc_exe for sys_path in (
                         "c:\\windows", "c:\\program files", "c:\\program files (x86)", "\\windowsapps"
                     ))
-                    is_trusted_app = any(svc in pname for svc in ("splunk", "installer", "trustedinstaller", "tiworker", "searchindexer", "spoolsv", "backgrounddownload", "xbox", "msedge", "chrome", "firefox", "teams"))
+                    is_trusted_app = any(svc in pname for svc in ("esbuild", "node", "npm", "uvicorn", "python", "splunk", "installer", "trustedinstaller", "tiworker", "searchindexer", "spoolsv", "backgrounddownload", "xbox", "msedge", "chrome", "firefox", "teams"))
 
                     if (is_in_system_dir or is_trusted_app) and not (is_benchmark_utility or is_suspicious_name):
                         continue
@@ -489,7 +489,7 @@ class ProcessMonitor:
                 "badusb", "rubberducky", "forkbomb", "prank", "run_all"
             )
             is_rogue = (
-                name not in ("python.exe", "python3.exe", "pythonw.exe", "node.exe", "npm.exe", "powershell.exe")
+                name not in ("python.exe", "python3.exe", "pythonw.exe", "node.exe", "npm.exe", "powershell.exe", "esbuild.exe")
                 and (
                     any(k in name for k in ROGUE_PATTERNS)
                     or any(k in proc_exe for k in ROGUE_PATTERNS)
